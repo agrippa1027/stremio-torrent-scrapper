@@ -1,0 +1,26 @@
+[
+  {
+    "type": "movie",
+    "id": "tt0111161",
+    "title": "The Shawshank Redemption",
+    "infoHash": "0123456789ABCDEF0123456789ABCDEF01234567",
+    "fileIdx": 0,
+    "size": 2147483648,
+    "seeds": 120,
+    "resolution": "1080p"
+  },
+  {
+    "type": "series",
+    "id": "tt0903747",
+    "title": "Breaking Bad S01E01",
+    "infoHash": "89ABCDEF0123456789ABCDEF0123456789ABCDEF",
+    "fileIdx": 0,
+    "size": 734003200,
+    "seeds": 42,
+    "resolution": "720p",
+    "episode": {
+      "season": 1,
+      "episode": 1
+    }
+  }
+]
