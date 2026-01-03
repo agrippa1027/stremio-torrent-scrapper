@@ -8,6 +8,7 @@ type Manifest struct {
 	Resources   []string `json:"resources"`
 	Types       []string `json:"types"`
 	Catalogs    []any    `json:"catalogs"`
+	Logo        string   `json:"logo,omitempty"`
 }
 
 type Stream struct {

@@ -9,7 +9,7 @@ import (
 	"scrapper/internal/indexer"
 )
 
-func (a *Addon) searchStreams(ctx context.Context, query string) []indexer.Result {
+func (a *Addon) searchStreams(ctx context.Context, query indexer.SearchQuery) []indexer.Result {
 	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
 
@@ -42,7 +42,8 @@ func (a *Addon) searchStreams(ctx context.Context, query string) []indexer.Resul
 			if res.err != nil {
 				a.logger.Warn("indexer search failed",
 					"indexer", res.name,
-					"query", query,
+					"query", query.Query,
+					"id", query.ID,
 					"error", res.err,
 				)
 				continue
@@ -50,19 +51,22 @@ func (a *Addon) searchStreams(ctx context.Context, query string) []indexer.Resul
 			if len(res.results) == 0 {
 				a.logger.Info("indexer search empty",
 					"indexer", res.name,
-					"query", query,
+					"query", query.Query,
+					"id", query.ID,
 				)
 				continue
 			}
 			a.logger.Info("indexer search success",
 				"indexer", res.name,
-				"query", query,
+				"query", query.Query,
+				"id", query.ID,
 				"results", len(res.results),
 			)
 			combined = append(combined, res.results...)
 		case <-ctx.Done():
 			a.logger.Warn("indexer search timeout",
-				"query", query,
+				"query", query.Query,
+				"id", query.ID,
 				"error", ctx.Err(),
 			)
 			return combined

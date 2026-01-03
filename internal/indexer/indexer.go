@@ -12,7 +12,15 @@ type Result struct {
 	PageURL  string
 }
 
+type SearchQuery struct {
+	Type    string
+	ID      string
+	Query   string
+	Season  int
+	Episode int
+}
+
 type Indexer interface {
-	Search(ctx context.Context, query string) ([]Result, error)
+	Search(ctx context.Context, query SearchQuery) ([]Result, error)
 	Name() string
 }

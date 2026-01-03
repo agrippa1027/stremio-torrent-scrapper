@@ -17,7 +17,8 @@ func DefaultConfig() Config {
 			Resources:   []string{"stream"},
 			Types:       []string{"movie", "series"},
 			Catalogs:    []any{},
+			Logo:        "https://www.stremio.com/website/stremio-logo-small.png",
 		},
-		Port: "7000",
+		Port: "8000",
 	}
 }

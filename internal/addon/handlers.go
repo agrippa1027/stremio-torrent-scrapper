@@ -1,8 +1,17 @@
 package addon
 
-import "net/http"
+import (
+	"net/http"
+
+	"scrapper/internal/indexer"
+)
 
 func (a *Addon) manifestHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	a.logger.Info("manifest request",
 		"method", r.Method,
 		"path", r.URL.Path,
@@ -12,6 +21,11 @@ func (a *Addon) manifestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	typeStr, idStr, ok := parseStreamPath(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
@@ -28,7 +42,13 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		"query", query,
 		"remote", r.RemoteAddr,
 	)
-	results := a.searchStreams(r.Context(), query)
+	results := a.searchStreams(r.Context(), indexer.SearchQuery{
+		Type:    typeStr,
+		ID:      baseID,
+		Query:   query,
+		Season:  season,
+		Episode: episode,
+	})
 	streams := buildStreams(results, a.trackers)
 	writeJSON(w, StreamResponse{Streams: streams})
 }
