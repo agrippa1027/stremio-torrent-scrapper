@@ -14,6 +14,8 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	baseID, season, episode := splitID(idStr)
-	streams := buildStreams(a.dataset, a.trackers, typeStr, baseID, season, episode)
+	query := buildQuery(typeStr, baseID, season, episode)
+	results := a.searchStreams(r.Context(), query)
+	streams := buildStreams(results, a.trackers)
 	writeJSON(w, StreamResponse{Streams: streams})
 }

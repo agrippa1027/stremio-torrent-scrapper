@@ -1,26 +1,27 @@
 package addon
 
-import "net/http"
+import (
+	"net/http"
+
+	"scrapper/internal/indexer"
+)
 
 type Addon struct {
-	dataset  []DatasetEntry
+	indexers []indexer.Indexer
 	trackers []string
 	manifest Manifest
 }
 
 func New(cfg Config) (*Addon, error) {
-	dataset, err := LoadDataset(cfg.DatasetPath)
-	if err != nil {
-		return nil, err
-	}
-
-	trackers, err := LoadTrackers(cfg.TrackersPath)
-	if err != nil || len(trackers) == 0 {
-		trackers = DefaultTrackers()
+	trackers := DefaultTrackers()
+	client := indexer.NewHTTPClient()
+	indexers := []indexer.Indexer{
+		indexer.NewYTS(client),
+		indexer.NewX1337(client),
 	}
 
 	return &Addon{
-		dataset:  dataset,
+		indexers: indexers,
 		trackers: trackers,
 		manifest: cfg.Manifest,
 	}, nil

@@ -1,22 +1,16 @@
 package addon
 
-import "path/filepath"
-
 type Config struct {
-	DatasetPath  string
-	TrackersPath string
-	Manifest     Manifest
+	Manifest Manifest
 }
 
 func DefaultConfig() Config {
 	return Config{
-		DatasetPath:  filepath.Join("data", "dataset.json"),
-		TrackersPath: filepath.Join("data", "trackers.txt"),
 		Manifest: Manifest{
-			ID:          "com.local.dataset.torrents",
+			ID:          "com.public.indexers",
 			Version:     "0.1.0",
-			Name:        "Local Dataset Torrents",
-			Description: "Streams only from your local dataset using public torrent trackers.",
+			Name:        "Public Indexer Streams",
+			Description: "Streams from public torrent indexers using title search.",
 			Resources:   []string{"stream"},
 			Types:       []string{"movie", "series"},
 			Catalogs:    []any{},

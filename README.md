@@ -1,6 +1,6 @@
 # Local Dataset Stremio Addon (Go)
 
-A minimal Stremio addon that serves streams only from your own dataset and public torrent trackers.
+A minimal Stremio addon that returns streams from public torrent indexers based on a title search.
 
 ## Run
 
@@ -11,51 +11,26 @@ go run ./cmd/addon
 The addon listens on `:7000` by default.
 
 - Manifest: `http://localhost:7000/manifest.json`
-- Streams: `http://localhost:7000/stream/movie/tt0111161.json`
-- Series: `http://localhost:7000/stream/series/tt0903747:1:1.json`
+- Streams: `http://localhost:7000/stream/movie/The%20Matrix.json`
+- Series: `http://localhost:7000/stream/series/Breaking%20Bad:1:1.json`
 
 ## Project layout
 
 - `cmd/addon`: entrypoint
 - `internal/addon`: addon logic and HTTP handlers
-- `data`: local dataset and trackers list
-
-## Dataset format
-
-Edit `data/dataset.json` to match your content. Example:
-
-```json
-[
-  {
-    "type": "movie",
-    "id": "tt0111161",
-    "title": "The Shawshank Redemption",
-    "infoHash": "0123456789ABCDEF0123456789ABCDEF01234567",
-    "fileIdx": 0,
-    "size": 2147483648,
-    "seeds": 120,
-    "resolution": "1080p"
-  },
-  {
-    "type": "series",
-    "id": "tt0903747",
-    "title": "Breaking Bad S01E01",
-    "infoHash": "89ABCDEF0123456789ABCDEF0123456789ABCDEF",
-    "fileIdx": 0,
-    "size": 734003200,
-    "seeds": 42,
-    "resolution": "720p",
-    "episode": { "season": 1, "episode": 1 }
-  }
-]
-```
+- `internal/indexer`: indexer-specific scrapers
 
 ## Trackers
 
-Edit `data/trackers.txt` to control the public trackers used to build magnet URIs.
+This addon uses a built-in list of public trackers to build magnet URIs.
+
+## How it works
+
+The stream endpoint treats the `{id}` portion of the path as a URL-encoded title
+query. For series requests, it appends `SxxEyy` to the query. The addon then
+searches public indexers (currently YTS and 1337x), gathers the top results, and
+returns Stremio streams backed by magnet links.
 
 ## Config
 
 - `PORT`: server port (default `7000`)
-- `DATASET_PATH`: dataset JSON path (default `data/dataset.json`)
-- `TRACKERS_PATH`: trackers list path (default `data/trackers.txt`)

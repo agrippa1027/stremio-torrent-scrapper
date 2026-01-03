@@ -11,14 +11,8 @@ import (
 
 func main() {
 	cfg := addon.DefaultConfig()
-	if v := os.Getenv("DATASET_PATH"); v != "" {
-		cfg.DatasetPath = v
-	}
-	if v := os.Getenv("TRACKERS_PATH"); v != "" {
-		cfg.TrackersPath = v
-	}
 
-	port := envOrDefault("PORT", "7000")
+	port := envOrDefault("PORT", "8000")
 
 	app, err := addon.New(cfg)
 	if err != nil {

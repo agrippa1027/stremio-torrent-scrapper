@@ -4,30 +4,27 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"scrapper/internal/indexer"
 )
 
-func buildStreams(entries []DatasetEntry, trackers []string, typ string, id string, season int, episode int) []Stream {
-	var streams []Stream
-	for _, entry := range entries {
-		if entry.Type != typ || entry.ID != id {
-			continue
-		}
-		if entry.Episode != nil {
-			if season == 0 || episode == 0 {
-				continue
-			}
-			if entry.Episode.Season != season || entry.Episode.Episode != episode {
-				continue
-			}
+func buildStreams(results []indexer.Result, trackers []string) []Stream {
+	streams := make([]Stream, 0, len(results))
+	for _, result := range results {
+		magnet := result.Magnet
+		if magnet == "" && result.InfoHash != "" {
+			magnet = buildMagnet(result.InfoHash, result.Title, trackers)
 		}
 
-		magnet := buildMagnet(entry.InfoHash, entry.Title, trackers)
+		if magnet == "" {
+			continue
+		}
+
 		streams = append(streams, Stream{
-			Name:     "Local Dataset",
-			Title:    formatTitle(entry),
+			Name:     result.Source,
+			Title:    formatTitle(result),
 			URL:      magnet,
-			InfoHash: entry.InfoHash,
-			FileIdx:  entry.FileIdx,
+			InfoHash: result.InfoHash,
 			Sources:  trackerSources(trackers),
 		})
 	}
@@ -59,21 +56,21 @@ func trackerSources(trackers []string) []string {
 	return out
 }
 
-func formatTitle(entry DatasetEntry) string {
+func formatTitle(result indexer.Result) string {
 	var parts []string
-	if entry.Resolution != "" {
-		parts = append(parts, entry.Resolution)
+	if result.Size > 0 {
+		parts = append(parts, humanSize(result.Size))
 	}
-	if entry.Size > 0 {
-		parts = append(parts, humanSize(entry.Size))
+	if result.Seeds > 0 {
+		parts = append(parts, fmt.Sprintf("%d seeds", result.Seeds))
 	}
-	if entry.Seeds > 0 {
-		parts = append(parts, fmt.Sprintf("%d seeds", entry.Seeds))
+	if result.Source != "" {
+		parts = append(parts, result.Source)
 	}
 	if len(parts) == 0 {
-		return entry.Title
+		return result.Title
 	}
-	return fmt.Sprintf("%s • %s", entry.Title, strings.Join(parts, " • "))
+	return fmt.Sprintf("%s • %s", result.Title, strings.Join(parts, " • "))
 }
 
 func humanSize(size int64) string {

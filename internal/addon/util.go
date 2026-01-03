@@ -3,6 +3,7 @@ package addon
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -14,7 +15,11 @@ func parseStreamPath(path string) (string, string, bool) {
 	if len(parts) != 2 {
 		return "", "", false
 	}
-	return parts[0], parts[1], true
+	id, err := url.PathUnescape(parts[1])
+	if err != nil {
+		return "", "", false
+	}
+	return parts[0], id, true
 }
 
 func splitID(id string) (string, int, int) {
