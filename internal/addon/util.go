@@ -1,6 +1,7 @@
 package addon
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -43,4 +44,27 @@ func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+}
+
+type requestContext struct {
+	ctx     context.Context
+	baseURL string
+}
+
+func newRequestContext(r *http.Request) *requestContext {
+	return &requestContext{
+		ctx:     r.Context(),
+		baseURL: requestBaseURL(r),
+	}
+}
+
+func requestBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if forwarded := r.Header.Get("X-Forwarded-Proto"); forwarded != "" {
+		scheme = strings.TrimSpace(strings.Split(forwarded, ",")[0])
+	}
+	return scheme + "://" + r.Host
 }

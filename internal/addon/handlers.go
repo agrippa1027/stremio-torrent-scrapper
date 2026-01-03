@@ -49,6 +49,6 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		Season:  season,
 		Episode: episode,
 	})
-	streams := buildStreams(results, a.trackers)
+	streams := a.buildTorboxStreamLinks(newRequestContext(r), results)
 	writeJSON(w, StreamResponse{Streams: streams})
 }

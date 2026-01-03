@@ -32,6 +32,73 @@ func buildStreams(results []indexer.Result, trackers []string) []Stream {
 	return streams
 }
 
+func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Result) []Stream {
+	a.logger.Info("building torbox stream links",
+		"numResults", len(results),
+	)
+
+	const maxResults = 10
+	streams := make([]Stream, 0, maxResults)
+
+	for _, result := range results {
+		if len(streams) >= maxResults {
+			break
+		}
+		if result.InfoHash == "" {
+			continue
+		}
+
+		cached, err := a.torbox.CheckCached(ctx.ctx, result.InfoHash)
+		if err != nil {
+			a.logger.Warn("torbox checkcached failed",
+				"hash", result.InfoHash,
+				"error", err,
+			)
+			continue
+		}
+
+		a.logger.Debug("torbox checkcached result",
+			"isCached", cached,
+		)
+
+		label := "Torbox (add)"
+		link := fmt.Sprintf("%s/torbox/stream/%s?cached=0&title=%s",
+			ctx.baseURL,
+			result.InfoHash,
+			url.QueryEscape(result.Title),
+		)
+		if cached {
+			label = "Torbox (cached)"
+			directURL, err := a.torboxStreamURL(ctx.ctx, result.InfoHash, result.Title, true)
+			if err != nil {
+				a.logger.Warn("torbox cached link failed",
+					"hash", result.InfoHash,
+					"error", err,
+				)
+			} else {
+				a.logger.Info("torbox checkcached result",
+					"cached", cached,
+					"directURL", directURL,
+				)
+				link = directURL
+			}
+		}
+
+		a.logger.Info("built torbox stream link",
+			"title", result.Title,
+			"link", link,
+		)
+
+		streams = append(streams, Stream{
+			Name:  label,
+			Title: formatTitle(result),
+			URL:   link,
+		})
+	}
+
+	return streams
+}
+
 func buildMagnet(infoHash string, title string, trackers []string) string {
 	vals := url.Values{}
 	vals.Set("xt", "urn:btih:"+strings.ToUpper(infoHash))

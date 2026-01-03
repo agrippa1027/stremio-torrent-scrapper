@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"scrapper/internal/addon"
@@ -20,7 +21,7 @@ func main() {
 	port := cfg.Port
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: slog.LevelDebug,
 	}))
 	slog.SetDefault(logger)
 
@@ -59,6 +60,15 @@ func applyEnvOverrides(cfg *addon.Config) {
 	}
 	if v := os.Getenv("JACKETT_API_KEY"); v != "" {
 		cfg.JackettAPIKey = v
+	}
+	if v := os.Getenv("TORBOX_API_KEY"); v != "" {
+		cfg.TorboxAPIKey = v
+	}
+	if v := os.Getenv("TORBOX_BASE_URL"); v != "" {
+		cfg.TorboxBaseURL = v
+	}
+	if v := os.Getenv("TORBOX_CACHED_ONLY"); v != "" {
+		cfg.TorboxCachedOnly = v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes")
 	}
 	if v := os.Getenv("PORT"); v != "" {
 		cfg.Port = v

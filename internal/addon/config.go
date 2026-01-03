@@ -1,10 +1,13 @@
 package addon
 
 type Config struct {
-	Manifest      Manifest `yaml:"-"`
-	JackettURL    string   `yaml:"jacketturl"`
-	JackettAPIKey string   `yaml:"jackettapikey"`
-	Port          string   `yaml:"port"`
+	Manifest         Manifest `yaml:"-"`
+	JackettURL       string   `yaml:"jacketturl"`
+	JackettAPIKey    string   `yaml:"jackettapikey"`
+	Port             string   `yaml:"port"`
+	TorboxAPIKey     string   `yaml:"torboxapikey"`
+	TorboxBaseURL    string   `yaml:"torboxbaseurl"`
+	TorboxCachedOnly bool     `yaml:"torboxcachedonly"`
 }
 
 func DefaultConfig() Config {
@@ -19,6 +22,8 @@ func DefaultConfig() Config {
 			Catalogs:    []any{},
 			Logo:        "https://www.stremio.com/website/stremio-logo-small.png",
 		},
-		Port: "8000",
+		Port:             "8000",
+		TorboxBaseURL:    "https://api.torbox.app/v1/api",
+		TorboxCachedOnly: true,
 	}
 }
