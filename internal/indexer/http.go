@@ -13,7 +13,3 @@ func NewHTTPClient() *http.Client {
 		},
 	}
 }
-
-func WithUserAgent(req *http.Request) {
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; StremioAddon/1.0)")
-}

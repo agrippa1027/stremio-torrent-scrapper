@@ -1,7 +1,10 @@
 package addon
 
 type Config struct {
-	Manifest Manifest
+	Manifest      Manifest `yaml:"-"`
+	JackettURL    string   `yaml:"jacketturl"`
+	JackettAPIKey string   `yaml:"jackettapikey"`
+	Port          string   `yaml:"port"`
 }
 
 func DefaultConfig() Config {
@@ -15,5 +18,6 @@ func DefaultConfig() Config {
 			Types:       []string{"movie", "series"},
 			Catalogs:    []any{},
 		},
+		Port: "7000",
 	}
 }

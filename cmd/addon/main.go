@@ -2,19 +2,29 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"scrapper/internal/addon"
+
+	"gopkg.in/yaml.v3"
 )
 
 func main() {
 	cfg := addon.DefaultConfig()
+	loadConfigFile("config.yml", &cfg)
+	applyEnvOverrides(&cfg)
 
-	port := envOrDefault("PORT", "8000")
+	port := cfg.Port
 
-	app, err := addon.New(cfg)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
+	app, err := addon.New(cfg, logger)
 	if err != nil {
 		log.Fatalf("init addon: %v", err)
 	}
@@ -35,9 +45,22 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
-func envOrDefault(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+func loadConfigFile(path string, cfg *addon.Config) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
 	}
-	return fallback
+	_ = yaml.Unmarshal(data, cfg)
+}
+
+func applyEnvOverrides(cfg *addon.Config) {
+	if v := os.Getenv("JACKETT_API_URL"); v != "" {
+		cfg.JackettURL = v
+	}
+	if v := os.Getenv("JACKETT_API_KEY"); v != "" {
+		cfg.JackettAPIKey = v
+	}
+	if v := os.Getenv("PORT"); v != "" {
+		cfg.Port = v
+	}
 }

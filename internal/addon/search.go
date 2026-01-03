@@ -16,6 +16,7 @@ func (a *Addon) searchStreams(ctx context.Context, query string) []indexer.Resul
 	type response struct {
 		results []indexer.Result
 		err     error
+		name    string
 	}
 
 	ch := make(chan response, len(a.indexers))
@@ -30,7 +31,7 @@ func (a *Addon) searchStreams(ctx context.Context, query string) []indexer.Resul
 					}
 				}
 			}
-			ch <- response{results: results, err: err}
+			ch <- response{results: results, err: err, name: idx.Name()}
 		}()
 	}
 
@@ -38,10 +39,32 @@ func (a *Addon) searchStreams(ctx context.Context, query string) []indexer.Resul
 	for i := 0; i < len(a.indexers); i++ {
 		select {
 		case res := <-ch:
-			if res.err == nil {
-				combined = append(combined, res.results...)
+			if res.err != nil {
+				a.logger.Warn("indexer search failed",
+					"indexer", res.name,
+					"query", query,
+					"error", res.err,
+				)
+				continue
 			}
+			if len(res.results) == 0 {
+				a.logger.Info("indexer search empty",
+					"indexer", res.name,
+					"query", query,
+				)
+				continue
+			}
+			a.logger.Info("indexer search success",
+				"indexer", res.name,
+				"query", query,
+				"results", len(res.results),
+			)
+			combined = append(combined, res.results...)
 		case <-ctx.Done():
+			a.logger.Warn("indexer search timeout",
+				"query", query,
+				"error", ctx.Err(),
+			)
 			return combined
 		}
 	}
