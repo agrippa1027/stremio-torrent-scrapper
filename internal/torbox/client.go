@@ -104,16 +104,33 @@ func (c *Client) CreateTorrent(ctx context.Context, magnet string, addOnlyIfCach
 }
 
 func (c *Client) GetTorrent(ctx context.Context, torrentID int) (Torrent, error) {
-	var result []Torrent
+	var raw json.RawMessage
 	q := url.Values{}
 	q.Set("id", strconv.Itoa(torrentID))
-	if err := c.doJSON(ctx, http.MethodGet, "/torrents/mylist", q, nil, "", &result); err != nil {
+	if err := c.doJSON(ctx, http.MethodGet, "/torrents/mylist", q, nil, "", &raw); err != nil {
 		return Torrent{}, err
 	}
-	if len(result) == 0 {
+	if len(raw) == 0 || string(raw) == "null" {
 		return Torrent{}, errors.New("torrent not found")
 	}
-	return result[0], nil
+
+	var list []Torrent
+	if err := json.Unmarshal(raw, &list); err == nil {
+		if len(list) == 0 {
+			return Torrent{}, errors.New("torrent not found")
+		}
+		return list[0], nil
+	}
+
+	var single Torrent
+	if err := json.Unmarshal(raw, &single); err == nil {
+		if single.ID == 0 {
+			return Torrent{}, errors.New("torrent not found")
+		}
+		return single, nil
+	}
+
+	return Torrent{}, errors.New("torrent not found")
 }
 
 func (c *Client) FindTorrentByHash(ctx context.Context, hash string) (Torrent, error) {
@@ -143,6 +160,18 @@ func (c *Client) RequestDownload(ctx context.Context, torrentID int, fileID int)
 	q.Set("token", c.apiKey)
 	q.Set("torrent_id", strconv.Itoa(torrentID))
 	q.Set("file_id", strconv.Itoa(fileID))
+	q.Set("redirect", "false")
+	var result string
+	if err := c.doJSON(ctx, http.MethodGet, "/torrents/requestdl", q, nil, "", &result); err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
+func (c *Client) RequestDownloadWithTorrentId(ctx context.Context, torrentID int) (string, error) {
+	q := url.Values{}
+	q.Set("token", c.apiKey)
+	q.Set("torrent_id", strconv.Itoa(torrentID))
 	q.Set("redirect", "false")
 	var result string
 	if err := c.doJSON(ctx, http.MethodGet, "/torrents/requestdl", q, nil, "", &result); err != nil {
