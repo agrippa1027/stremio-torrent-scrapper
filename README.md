@@ -49,6 +49,7 @@ Example `config.yml`:
 port: "8000"
 jacketturl: "http://localhost:9117"
 jackettapikey: "REPLACE_ME"
+tmdbapikey: "REPLACE_ME"
 torboxbaseurl: "https://api.torbox.app/v1/api"
 torboxapikey: "REPLACE_ME"
 torboxcachedonly: true
@@ -59,6 +60,7 @@ Environment variables:
 - `PORT`: server port (default `8000`)
 - `JACKETT_API_URL`: Jackett base URL (e.g., `http://localhost:9117`)
 - `JACKETT_API_KEY`: Jackett API key (from the Jackett UI)
+- `TMDB_API_KEY`: TMDB API key for IMDb→title fallback (optional)
 - `TORBOX_BASE_URL`: Torbox base URL (default `https://api.torbox.app/v1/api`)
 - `TORBOX_API_KEY`: Torbox API key
 - `TORBOX_CACHED_ONLY`: `true` to only add cached torrents (default `true`)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"scrapper/internal/indexer"
+	"scrapper/internal/tmdb"
 	"scrapper/internal/torbox"
 )
 
@@ -28,7 +29,16 @@ func New(cfg Config, logger *slog.Logger) (*Addon, error) {
 
 	trackers := DefaultTrackers()
 	client := indexer.NewHTTPClient()
-	jackettIndexer, err := indexer.NewJackett(client, cfg.JackettURL, cfg.JackettAPIKey)
+	var tmdbClient *tmdb.Client
+	var err error
+	if cfg.TMDBAPIKey != "" {
+		tmdbClient, err = tmdb.NewClient(cfg.TMDBAPIKey, client)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	jackettIndexer, err := indexer.NewJackett(client, cfg.JackettURL, cfg.JackettAPIKey, tmdbClient, logger)
 	if err != nil {
 		return nil, err
 	}

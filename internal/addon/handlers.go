@@ -26,6 +26,7 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	a.logger.Info("stream handler invoked", "url", r.URL.Path)
 	typeStr, idStr, ok := parseStreamPath(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
@@ -49,6 +50,7 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		Season:  season,
 		Episode: episode,
 	})
+	a.logger.Info("stream results", "first 5", results[:min(5, len(results))])
 	streams := a.buildTorboxStreamLinks(newRequestContext(r), results)
 	writeJSON(w, StreamResponse{Streams: streams})
 }

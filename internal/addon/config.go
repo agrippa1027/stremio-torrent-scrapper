@@ -4,6 +4,7 @@ type Config struct {
 	Manifest         Manifest `yaml:"-"`
 	JackettURL       string   `yaml:"jacketturl"`
 	JackettAPIKey    string   `yaml:"jackettapikey"`
+	TMDBAPIKey       string   `yaml:"tmdbapikey"`
 	Port             string   `yaml:"port"`
 	TorboxAPIKey     string   `yaml:"torboxapikey"`
 	TorboxBaseURL    string   `yaml:"torboxbaseurl"`
