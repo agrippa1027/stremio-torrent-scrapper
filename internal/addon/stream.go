@@ -32,7 +32,7 @@ func buildStreams(results []indexer.Result, trackers []string) []Stream {
 	return streams
 }
 
-func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Result) []Stream {
+func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Result, typ string, season int, episode int) []Stream {
 	a.logger.Info("building torbox stream links",
 		"numResults", len(results),
 	)
@@ -67,9 +67,12 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Re
 			result.InfoHash,
 			url.QueryEscape(result.Title),
 		)
+		if typ == "series" && season > 0 && episode > 0 {
+			link += fmt.Sprintf("&season=%d&episode=%d", season, episode)
+		}
 		if cached {
 			label = "Torbox (cached)"
-			directURL, err := a.torboxStreamURL(ctx.ctx, result.InfoHash, result.Title, true)
+			directURL, err := a.torboxStreamURL(ctx.ctx, result.InfoHash, result.Title, true, season, episode)
 			if err != nil {
 				a.logger.Warn("torbox cached link failed",
 					"hash", result.InfoHash,

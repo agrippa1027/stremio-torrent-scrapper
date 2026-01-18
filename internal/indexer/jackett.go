@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"scrapper/internal/tmdb"
@@ -49,76 +50,26 @@ func (j *Jackett) Search(ctx context.Context, query SearchQuery) ([]Result, erro
 		"season", query.Season,
 		"episode", query.Episode,
 	)
-	var req *jackett.FetchRequest
-	if imdbID != "" {
-		switch query.Type {
-		case "movie":
-			req = jackett.NewMovieSearch().
-				WithIMDBID(imdbID).
-				Build()
-			j.logger.Debug("Jackett movie search",
-				"imdb_id", imdbID,
-			)
-		case "series":
-			j.logger.Debug("Jackett tv search",
-				"imdb_id", imdbID,
-				"season", query.Season,
-				"episode", query.Episode,
-			)
-			tv := jackett.NewTVSearch().
-				WithIMDBID(imdbID)
-			if query.Season > 0 {
-				tv = tv.WithSeason(uint(query.Season))
-			}
-			if query.Episode > 0 {
-				tv = tv.WithEpisode(uint(query.Episode))
-			}
-			j.logger.Debug("Jackett TV search built",
-				"imdb_id", imdbID,
-				"season", query.Season,
-				"episode", query.Episode,
-			)
-			req = tv.Build()
-		}
-	}
-
-	results, err := j.client.Fetch(ctx, req)
-	if err != nil {
-		j.logger.Warn("Jackett fetch failed", "error", err)
-		if query.Type == "series" && imdbID != "" && isUnsupportedIMDBError(err) {
-			title, titleErr := j.tmdbTitleByIMDB(ctx, imdbID)
-			if titleErr != nil {
-				j.logger.Warn("tmdb imdb lookup failed",
-					"imdb_id", imdbID,
-					"error", titleErr,
-				)
-				return nil, err
-			}
-			if title == "" {
-				return nil, err
-			}
-			tv := jackett.NewTVSearch().WithQuery(title)
-			if query.Season > 0 {
-				tv = tv.WithSeason(uint(query.Season))
-			}
-			if query.Episode > 0 {
-				tv = tv.WithEpisode(uint(query.Episode))
-			}
-			fallbackReq := tv.Build()
-			j.logger.Debug("Jackett tv fallback search",
-				"imdb_id", imdbID,
-				"title", title,
-				"season", query.Season,
-				"episode", query.Episode,
-			)
-			results, err = j.client.Fetch(ctx, fallbackReq)
-			if err != nil {
-				return nil, err
-			}
+	var results []jackett.Result
+	var err error
+	switch query.Type {
+	case "movie":
+		if imdbID != "" {
+			req := jackett.NewMovieSearch().WithIMDBID(imdbID).Build()
+			results, err = j.client.Fetch(ctx, req)
 		} else {
-			j.logger.Error("Jackett fetch error", "error", err)
-			return nil, err
+			req := jackett.NewRawSearch().WithQuery(query.Query).Build()
+			results, err = j.client.Fetch(ctx, req)
 		}
+	case "series":
+		results, err = j.searchSeries(ctx, query, imdbID)
+	default:
+		req := jackett.NewRawSearch().WithQuery(query.Query).Build()
+		results, err = j.client.Fetch(ctx, req)
+	}
+	if err != nil {
+		j.logger.Error("Jackett fetch error", "error", err)
+		return nil, err
 	}
 
 	out := make([]Result, 0, len(results))
@@ -157,4 +108,100 @@ func (j *Jackett) tmdbTitleByIMDB(ctx context.Context, imdbID string) (string, e
 		return "", tmdb.ErrMissingAPIKey
 	}
 	return j.tmdb.TVTitleByIMDB(ctx, imdbID)
+}
+
+func (j *Jackett) searchSeries(ctx context.Context, query SearchQuery, imdbID string) ([]jackett.Result, error) {
+	title := ""
+	if t, err := j.tmdbTitleByIMDB(ctx, imdbID); err == nil {
+		title = t
+	}
+
+	// requests are ordered by title whole season, title specific episode, IMDB whole season, IMDB specific episode
+	requests := j.seriesRequests(query, imdbID, title)
+	var lastErr error
+
+	for _, req := range requests {
+		results, err := j.client.Fetch(ctx, req)
+		if err != nil {
+			if imdbID != "" && isUnsupportedIMDBError(err) {
+				// This means there in no point in going back. as we have tried
+				// almost every to way to search
+				j.logger.Warn("Jacket threw and isUnsupportedIMDBError", "err", err)
+				lastErr = err
+				break
+			}
+			return nil, err
+		}
+		if len(results) > 0 {
+			return results, nil
+		}
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, nil
+}
+
+func (j *Jackett) seriesRequests(query SearchQuery, imdbID string, title string) []*jackett.FetchRequest {
+	var requests []*jackett.FetchRequest
+
+	/*
+	*  Most indexers do not support TV search by IMDB ID, so we try multiple methods
+	*  so we are first trying with title then moving onto IMDB id
+	*  it is also preferable to get the complete season then get the individual episode from then
+	*  complete season torrent
+	 */
+	if title != "" && query.Season > 0 {
+		requests = append(requests, j.buildTVSearchByTitle(title, query.Season, 0, true))
+		requests = append(requests, j.buildTVSearchByTitle(title, query.Season, 0, false))
+	}
+
+	if title != "" && query.Season > 0 && query.Episode > 0 {
+		requests = append(requests, j.buildTVSearchByTitle(title, query.Season, query.Episode, false))
+	}
+
+	if imdbID != "" {
+		requests = append(requests, j.buildTVSearchByIMDB(imdbID, query.Season, 0))
+		if query.Season > 0 && query.Episode > 0 {
+			requests = append(requests, j.buildTVSearchByIMDB(imdbID, query.Season, query.Episode))
+		}
+	}
+
+	if query.Query != "" {
+		requests = append(requests, jackett.NewRawSearch().WithQuery(query.Query).Build())
+	}
+
+	return requests
+}
+
+func (j *Jackett) buildTVSearchByIMDB(imdbID string, season int, episode int) *jackett.FetchRequest {
+	tv := jackett.NewTVSearch().WithIMDBID(imdbID)
+	if season > 0 {
+		tv = tv.WithSeason(uint(season))
+	}
+	if episode > 0 {
+		tv = tv.WithEpisode(uint(episode))
+	}
+	return tv.Build()
+}
+
+func (j *Jackett) buildTVSearchByTitle(title string, season int, episode int, multiSeason bool) *jackett.FetchRequest {
+	query := title
+	if season > 0 {
+		if multiSeason {
+			query = strings.TrimSpace(query + " S01-S" + twoDigits(season))
+		} else if episode > 0 {
+			query = strings.TrimSpace(query + " S" + twoDigits(season) + "E" + twoDigits(episode))
+		} else {
+			query = strings.TrimSpace(query + " S" + twoDigits(season))
+		}
+	}
+	return jackett.NewTVSearch().WithQuery(query).Build()
+}
+
+func twoDigits(value int) string {
+	if value < 10 {
+		return "0" + strconv.Itoa(value)
+	}
+	return strconv.Itoa(value)
 }

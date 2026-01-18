@@ -10,7 +10,7 @@ import (
 )
 
 func (a *Addon) searchStreams(ctx context.Context, query indexer.SearchQuery) []indexer.Result {
-	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	type response struct {
@@ -21,7 +21,6 @@ func (a *Addon) searchStreams(ctx context.Context, query indexer.SearchQuery) []
 
 	ch := make(chan response, len(a.indexers))
 	for _, idx := range a.indexers {
-		idx := idx
 		go func() {
 			results, err := idx.Search(ctx, query)
 			if err == nil {

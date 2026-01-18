@@ -3,6 +3,7 @@ package addon
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,9 +28,11 @@ func (a *Addon) torboxStreamHandler(w http.ResponseWriter, r *http.Request) {
 
 	cachedOnly := parseBool(r.URL.Query().Get("cached"), a.torboxCachedOnly)
 	title := r.URL.Query().Get("title")
+	season := parseInt(r.URL.Query().Get("season"))
+	episode := parseInt(r.URL.Query().Get("episode"))
 
 	ctx := r.Context()
-	url, err := a.torboxStreamURL(ctx, hash, title, cachedOnly)
+	url, err := a.torboxStreamURL(ctx, hash, title, cachedOnly, season, episode)
 	if err != nil {
 		a.logger.Warn("torbox stream failed",
 			"hash", hash,
@@ -48,7 +51,7 @@ func (a *Addon) torboxStreamHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
-func (a *Addon) torboxStreamURL(ctx context.Context, hash string, title string, cachedOnly bool) (string, error) {
+func (a *Addon) torboxStreamURL(ctx context.Context, hash string, title string, cachedOnly bool, season int, episode int) (string, error) {
 	magnet := buildMagnet(hash, title, a.trackers)
 
 	created, err := a.torbox.CreateTorrent(ctx, magnet, cachedOnly)
@@ -59,7 +62,7 @@ func (a *Addon) torboxStreamURL(ctx context.Context, hash string, title string, 
 			if findErr != nil {
 				return "", err
 			}
-			return a.requestTorboxLink(ctx, existing.ID)
+			return a.requestTorboxLink(ctx, existing.ID, season, episode)
 		}
 		return "", err
 	}
@@ -67,10 +70,10 @@ func (a *Addon) torboxStreamURL(ctx context.Context, hash string, title string, 
 		"createdID", created.TorrentID,
 	)
 
-	return a.requestTorboxLink(ctx, created.TorrentID)
+	return a.requestTorboxLink(ctx, created.TorrentID, season, episode)
 }
 
-func (a *Addon) requestTorboxLink(ctx context.Context, torrentID int) (string, error) {
+func (a *Addon) requestTorboxLink(ctx context.Context, torrentID int, season int, episode int) (string, error) {
 	torrent, err := a.torbox.GetTorrent(ctx, torrentID)
 	if err != nil {
 		return "", err
@@ -79,7 +82,7 @@ func (a *Addon) requestTorboxLink(ctx context.Context, torrentID int) (string, e
 		return "", errors.New("torrent not ready; try again later")
 	}
 
-	file, ok := selectBestFile(torrent.Files)
+	file, ok := selectEpisodeFile(torrent.Files, season, episode)
 	if !ok {
 		return "", errors.New("no playable file")
 	}
@@ -87,7 +90,13 @@ func (a *Addon) requestTorboxLink(ctx context.Context, torrentID int) (string, e
 	return a.torbox.RequestDownload(ctx, torrentID, file.ID)
 }
 
-func selectBestFile(files []torbox.TorrentFile) (torbox.TorrentFile, bool) {
+func selectEpisodeFile(files []torbox.TorrentFile, season int, episode int) (torbox.TorrentFile, bool) {
+	if season > 0 && episode > 0 {
+		if match, ok := matchEpisodeFile(files, season, episode); ok {
+			return match, true
+		}
+	}
+
 	var best torbox.TorrentFile
 	for _, file := range files {
 		if !isVideoFile(file.ShortName) {
@@ -111,6 +120,22 @@ func isVideoFile(name string) bool {
 		strings.HasSuffix(name, ".mov")
 }
 
+func matchEpisodeFile(files []torbox.TorrentFile, season int, episode int) (torbox.TorrentFile, bool) {
+	target := fmt.Sprintf("s%02de%02d", season, episode)
+	targetAlt := fmt.Sprintf("%dx%02d", season, episode)
+
+	for _, file := range files {
+		name := strings.ToLower(file.Name + " " + file.ShortName)
+		if strings.Contains(name, target) || strings.Contains(name, targetAlt) {
+			if isVideoFile(file.ShortName) {
+				return file, true
+			}
+		}
+	}
+
+	return torbox.TorrentFile{}, false
+}
+
 func parseBool(raw string, fallback bool) bool {
 	if raw == "" {
 		return fallback
@@ -120,4 +145,15 @@ func parseBool(raw string, fallback bool) bool {
 		return value
 	}
 	return fallback
+}
+
+func parseInt(raw string) int {
+	if raw == "" {
+		return 0
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0
+	}
+	return value
 }
