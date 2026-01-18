@@ -3,8 +3,8 @@ package addon
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -62,7 +62,7 @@ func (a *Addon) torboxStreamURL(ctx context.Context, hash string, title string, 
 			if findErr != nil {
 				return "", err
 			}
-			return a.requestTorboxLink(ctx, existing.ID, season, episode)
+			return a.requestTorboxLink(ctx, existing.ID, title, season, episode)
 		}
 		return "", err
 	}
@@ -70,10 +70,10 @@ func (a *Addon) torboxStreamURL(ctx context.Context, hash string, title string, 
 		"createdID", created.TorrentID,
 	)
 
-	return a.requestTorboxLink(ctx, created.TorrentID, season, episode)
+	return a.requestTorboxLink(ctx, created.TorrentID, title, season, episode)
 }
 
-func (a *Addon) requestTorboxLink(ctx context.Context, torrentID int, season int, episode int) (string, error) {
+func (a *Addon) requestTorboxLink(ctx context.Context, torrentID int, title string, season int, episode int) (string, error) {
 	torrent, err := a.torbox.GetTorrent(ctx, torrentID)
 	if err != nil {
 		return "", err
@@ -82,7 +82,7 @@ func (a *Addon) requestTorboxLink(ctx context.Context, torrentID int, season int
 		return "", errors.New("torrent not ready; try again later")
 	}
 
-	file, ok := selectEpisodeFile(torrent.Files, season, episode)
+	file, ok := selectEpisodeFile(torrent.Files, title, season, episode)
 	if !ok {
 		return "", errors.New("no playable file")
 	}
@@ -90,9 +90,9 @@ func (a *Addon) requestTorboxLink(ctx context.Context, torrentID int, season int
 	return a.torbox.RequestDownload(ctx, torrentID, file.ID)
 }
 
-func selectEpisodeFile(files []torbox.TorrentFile, season int, episode int) (torbox.TorrentFile, bool) {
-	if season > 0 && episode > 0 {
-		if match, ok := matchEpisodeFile(files, season, episode); ok {
+func selectEpisodeFile(files []torbox.TorrentFile, title string, season int, episode int) (torbox.TorrentFile, bool) {
+	if season > 0 {
+		if match, ok := matchEpisodeFile(files, title, season, episode); ok {
 			return match, true
 		}
 	}
@@ -112,28 +112,65 @@ func selectEpisodeFile(files []torbox.TorrentFile, season int, episode int) (tor
 	return best, true
 }
 
+var episodePatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)s(\d{1,2})e(\d{1,2})`),
+	regexp.MustCompile(`(?i)(\d{1,2})x(\d{1,2})`),
+	regexp.MustCompile(`(?i)season[ ._-]?(\d{1,2}).*episode[ ._-]?(\d{1,2})`),
+}
+
+func matchEpisodeFile(files []torbox.TorrentFile, title string, season int, episode int) (torbox.TorrentFile, bool) {
+	query := strings.ToLower(title)
+	var best torbox.TorrentFile
+
+	for _, file := range files {
+		name := strings.ToLower(file.Name + " " + file.ShortName)
+		if !isVideoFile(file.ShortName) {
+			continue
+		}
+		fileSeason, fileEpisode, ok := parseEpisodeMarker(name)
+		if !ok || fileSeason != season || fileEpisode != episode {
+			continue
+		}
+		if query != "" && !strings.Contains(name, query) {
+			continue
+		}
+		if file.Size > best.Size {
+			best = file
+		}
+	}
+
+	if best.ID == 0 {
+		return torbox.TorrentFile{}, false
+	}
+
+	return best, true
+}
+
+func parseEpisodeMarker(name string) (int, int, bool) {
+	for _, re := range episodePatterns {
+		matches := re.FindStringSubmatch(name)
+		if len(matches) != 3 {
+			continue
+		}
+		season, err := strconv.Atoi(matches[1])
+		if err != nil {
+			continue
+		}
+		episode, err := strconv.Atoi(matches[2])
+		if err != nil {
+			continue
+		}
+		return season, episode, true
+	}
+	return 0, 0, false
+}
+
 func isVideoFile(name string) bool {
 	name = strings.ToLower(name)
 	return strings.HasSuffix(name, ".mkv") ||
 		strings.HasSuffix(name, ".mp4") ||
 		strings.HasSuffix(name, ".avi") ||
 		strings.HasSuffix(name, ".mov")
-}
-
-func matchEpisodeFile(files []torbox.TorrentFile, season int, episode int) (torbox.TorrentFile, bool) {
-	target := fmt.Sprintf("s%02de%02d", season, episode)
-	targetAlt := fmt.Sprintf("%dx%02d", season, episode)
-
-	for _, file := range files {
-		name := strings.ToLower(file.Name + " " + file.ShortName)
-		if strings.Contains(name, target) || strings.Contains(name, targetAlt) {
-			if isVideoFile(file.ShortName) {
-				return file, true
-			}
-		}
-	}
-
-	return torbox.TorrentFile{}, false
 }
 
 func parseBool(raw string, fallback bool) bool {
