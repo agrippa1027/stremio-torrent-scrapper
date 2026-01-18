@@ -118,28 +118,26 @@ func (j *Jackett) searchSeries(ctx context.Context, query SearchQuery, imdbID st
 
 	// requests are ordered by title whole season, title specific episode, IMDB whole season, IMDB specific episode
 	requests := j.seriesRequests(query, imdbID, title)
-	var lastErr error
 
+	var results []jackett.Result
 	for _, req := range requests {
-		results, err := j.client.Fetch(ctx, req)
+		j.logger.Debug("Jackett series search request", "request", req.TV)
+		fetch, err := j.client.Fetch(ctx, req)
 		if err != nil {
 			if imdbID != "" && isUnsupportedIMDBError(err) {
 				// This means there in no point in going back. as we have tried
 				// almost every to way to search
 				j.logger.Warn("Jacket threw and isUnsupportedIMDBError", "err", err)
-				lastErr = err
 				break
 			}
-			return nil, err
 		}
-		if len(results) > 0 {
-			return results, nil
+		if len(fetch) > 0 {
+			j.logger.Debug("Jackett series search got results", "numResults", len(fetch))
+			results = append(results, fetch...)
 		}
 	}
-	if lastErr != nil {
-		return nil, lastErr
-	}
-	return nil, nil
+
+	return results, nil
 }
 
 func (j *Jackett) seriesRequests(query SearchQuery, imdbID string, title string) []*jackett.FetchRequest {

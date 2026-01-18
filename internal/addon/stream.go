@@ -44,14 +44,18 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Re
 		if len(streams) >= maxResults {
 			break
 		}
-		if result.InfoHash == "" {
+		infoHash := result.InfoHash
+		if infoHash == "" {
+			infoHash = infoHashFromMagnet(result.Magnet)
+		}
+		if infoHash == "" {
 			continue
 		}
 
-		cached, err := a.torbox.CheckCached(ctx.ctx, result.InfoHash)
+		cached, err := a.torbox.CheckCached(ctx.ctx, infoHash)
 		if err != nil {
 			a.logger.Warn("torbox checkcached failed",
-				"hash", result.InfoHash,
+				"hash", infoHash,
 				"error", err,
 			)
 			continue
@@ -64,7 +68,7 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Re
 		label := "Torbox (add)"
 		link := fmt.Sprintf("%s/torbox/stream/%s?cached=0&title=%s",
 			ctx.baseURL,
-			result.InfoHash,
+			infoHash,
 			url.QueryEscape(result.Title),
 		)
 		if typ == "series" && season > 0 && episode > 0 {
@@ -72,10 +76,10 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Re
 		}
 		if cached {
 			label = "Torbox (cached)"
-			directURL, err := a.torboxStreamURL(ctx.ctx, result.InfoHash, result.Title, true, season, episode)
+			directURL, err := a.torboxStreamURL(ctx.ctx, infoHash, result.Title, true, season, episode)
 			if err != nil {
 				a.logger.Warn("torbox cached link failed",
-					"hash", result.InfoHash,
+					"hash", infoHash,
 					"error", err,
 				)
 			} else {
@@ -90,12 +94,14 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Re
 		a.logger.Info("built torbox stream link",
 			"title", result.Title,
 			"link", link,
+			"info_hash", infoHash,
 		)
 
 		streams = append(streams, Stream{
-			Name:  label,
-			Title: formatTitle(result),
-			URL:   link,
+			Name:     label,
+			Title:    formatTitle(result),
+			URL:      link,
+			InfoHash: infoHash,
 		})
 	}
 
@@ -112,6 +118,26 @@ func buildMagnet(infoHash string, title string, trackers []string) string {
 		vals.Add("tr", tr)
 	}
 	return "magnet:?" + vals.Encode()
+}
+
+func infoHashFromMagnet(magnet string) string {
+	if magnet == "" {
+		return ""
+	}
+	const prefix = "magnet:?"
+	if strings.HasPrefix(magnet, prefix) {
+		magnet = magnet[len(prefix):]
+	}
+	values, err := url.ParseQuery(magnet)
+	if err != nil {
+		return ""
+	}
+	xt := strings.ToLower(values.Get("xt"))
+	const urnPrefix = "urn:btih:"
+	if !strings.HasPrefix(xt, urnPrefix) {
+		return ""
+	}
+	return strings.ToUpper(strings.TrimPrefix(xt, urnPrefix))
 }
 
 func trackerSources(trackers []string) []string {
