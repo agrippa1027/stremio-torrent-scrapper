@@ -132,12 +132,109 @@ func (j *Jackett) searchSeries(ctx context.Context, query SearchQuery, imdbID st
 			}
 		}
 		if len(fetch) > 0 {
-			j.logger.Debug("Jackett series search got results", "numResults", len(fetch))
-			results = append(results, fetch...)
+			filtered := filterSeriesResults(fetch, title)
+			j.logger.Debug("Jackett series search got results",
+				"numResults", len(fetch),
+				"filtered", len(filtered),
+			)
+			results = append(results, filtered...)
 		}
 	}
 
 	return results, nil
+}
+
+func filterSeriesResults(results []jackett.Result, title string) []jackett.Result {
+	if title == "" {
+		return results
+	}
+
+	normalizedTitle := normalizeSeriesTitle(title)
+	if normalizedTitle == "" {
+		return results
+	}
+
+	filtered := make([]jackett.Result, 0, len(results))
+	for _, result := range results {
+		if matchesSeriesTitle(result.Title, normalizedTitle) {
+			filtered = append(filtered, result)
+		}
+	}
+
+	return filtered
+}
+
+func matchesSeriesTitle(rawTitle string, normalizedTitle string) bool {
+	candidate := normalizeSeriesTitle(rawTitle)
+	if candidate == "" {
+		return false
+	}
+
+	titleTokens := strings.Fields(normalizedTitle)
+	candidateTokens := strings.Fields(candidate)
+	if len(titleTokens) == 0 || len(candidateTokens) < len(titleTokens) {
+		return false
+	}
+
+	for i := 0; i+len(titleTokens) <= len(candidateTokens); i++ {
+		if !tokensMatch(candidateTokens[i:i+len(titleTokens)], titleTokens) {
+			continue
+		}
+		nextIndex := i + len(titleTokens)
+		if nextIndex >= len(candidateTokens) {
+			return true
+		}
+		nextToken := candidateTokens[nextIndex]
+		if isAllowedSeriesSuffix(nextToken) || isSeasonOrEpisodeToken(nextToken) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func tokensMatch(candidate []string, title []string) bool {
+	for i := range title {
+		if candidate[i] != title[i] {
+			return false
+		}
+	}
+	return true
+}
+
+var seasonEpisodeTokenPattern = regexp.MustCompile(`(?i)^s?\d{1,2}e\d{1,2}$|^\d{1,2}x\d{1,2}$`)
+var seasonTokenPattern = regexp.MustCompile(`(?i)^s\d{1,2}$|^season\d{1,2}$|^s\d{1,2}-s\d{1,2}$|^s\d{1,2}to\d{1,2}$`)
+
+func isSeasonOrEpisodeToken(token string) bool {
+	return seasonEpisodeTokenPattern.MatchString(token) || seasonTokenPattern.MatchString(token)
+}
+
+func isAllowedSeriesSuffix(token string) bool {
+	switch token {
+	case "uk", "us", "u", "u.s", "u.s.", "u.k", "u.k.", "complete", "collection", "series", "season", "seasons":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeSeriesTitle(raw string) string {
+	normalized := strings.ToLower(raw)
+	replacer := strings.NewReplacer(
+		".", " ",
+		"_", " ",
+		"-", " ",
+		":", " ",
+		"(", " ",
+		")", " ",
+		"[", " ",
+		"]", " ",
+		"'", " ",
+		"\"", " ",
+	)
+	normalized = replacer.Replace(normalized)
+	fields := strings.Fields(normalized)
+	return strings.Join(fields, " ")
 }
 
 func (j *Jackett) seriesRequests(query SearchQuery, imdbID string, title string) []*jackett.FetchRequest {

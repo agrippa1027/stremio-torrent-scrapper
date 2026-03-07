@@ -52,7 +52,7 @@ func (a *Addon) torboxStreamHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Addon) torboxStreamURL(ctx context.Context, hash string, title string, cachedOnly bool, season int, episode int) (string, error) {
-	magnet := buildMagnet(hash, title, a.trackers)
+	magnet := buildMagnet(hash, title)
 
 	created, err := a.torbox.CreateTorrent(ctx, magnet, cachedOnly)
 	if err != nil {

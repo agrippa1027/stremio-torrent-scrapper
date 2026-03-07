@@ -3,6 +3,9 @@ package addon
 import (
 	"fmt"
 	"net/url"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 
 	"scrapper/internal/indexer"
@@ -13,7 +16,7 @@ func buildStreams(results []indexer.Result, trackers []string) []Stream {
 	for _, result := range results {
 		magnet := result.Magnet
 		if magnet == "" && result.InfoHash != "" {
-			magnet = buildMagnet(result.InfoHash, result.Title, trackers)
+			magnet = buildMagnet(result.InfoHash, result.Title)
 		}
 
 		if magnet == "" {
@@ -37,10 +40,12 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Re
 		"numResults", len(results),
 	)
 
-	const maxResults = 10
+	const maxResults = 30
+	filtered := filterEpisodeResults(results, typ, season, episode)
+	sorted := sortResultsByQuality(filtered)
 	streams := make([]Stream, 0, maxResults)
 
-	for _, result := range results {
+	for _, result := range sorted {
 		if len(streams) >= maxResults {
 			break
 		}
@@ -108,16 +113,102 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []indexer.Re
 	return streams
 }
 
-func buildMagnet(infoHash string, title string, trackers []string) string {
+func buildMagnet(infoHash string, title string) string {
 	vals := url.Values{}
 	vals.Set("xt", "urn:btih:"+strings.ToUpper(infoHash))
 	if title != "" {
 		vals.Set("dn", title)
 	}
-	for _, tr := range trackers {
-		vals.Add("tr", tr)
-	}
 	return "magnet:?" + vals.Encode()
+}
+
+var episodeRegexes = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)s(\d{1,2})e(\d{1,2})`),
+	regexp.MustCompile(`(?i)(\d{1,2})x(\d{1,2})`),
+	regexp.MustCompile(`(?i)season[ ._-]?(\d{1,2}).*episode[ ._-]?(\d{1,2})`),
+}
+
+func filterEpisodeResults(results []indexer.Result, typ string, season int, episode int) []indexer.Result {
+	if typ != "series" || season <= 0 || episode <= 0 {
+		return results
+	}
+
+	filtered := make([]indexer.Result, 0, len(results))
+	for _, result := range results {
+		matchSeason, matchEpisode, ok := extractEpisodeMarker(result.Title)
+		if !ok || matchSeason != season || matchEpisode != episode {
+			continue
+		}
+		filtered = append(filtered, result)
+	}
+
+	if len(filtered) == 0 {
+		return results
+	}
+	return filtered
+}
+
+func extractEpisodeMarker(title string) (int, int, bool) {
+	candidate := strings.ToLower(title)
+	for _, re := range episodeRegexes {
+		matches := re.FindStringSubmatch(candidate)
+		if len(matches) != 3 {
+			continue
+		}
+		season, err := strconv.Atoi(matches[1])
+		if err != nil {
+			continue
+		}
+		episode, err := strconv.Atoi(matches[2])
+		if err != nil {
+			continue
+		}
+		return season, episode, true
+	}
+	return 0, 0, false
+}
+
+func sortResultsByQuality(results []indexer.Result) []indexer.Result {
+	sorted := make([]indexer.Result, len(results))
+	copy(sorted, results)
+	if len(sorted) < 2 {
+		return sorted
+	}
+
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return qualityRank(sorted[i].Title) > qualityRank(sorted[j].Title)
+	})
+	return sorted
+}
+
+func qualityRank(title string) int {
+	candidate := strings.ToLower(title)
+	score := 0
+	if strings.Contains(candidate, "2160p") || strings.Contains(candidate, "4k") || strings.Contains(candidate, "uhd") {
+		score += 400
+	} else if strings.Contains(candidate, "1080p") {
+		score += 300
+	} else if strings.Contains(candidate, "720p") {
+		score += 200
+	} else if strings.Contains(candidate, "480p") {
+		score += 100
+	}
+
+	if strings.Contains(candidate, "bluray") || strings.Contains(candidate, "blu-ray") || strings.Contains(candidate, "bdrip") || strings.Contains(candidate, "brrip") {
+		score += 80
+	} else if strings.Contains(candidate, "web-dl") || strings.Contains(candidate, "webdl") || strings.Contains(candidate, "webrip") {
+		score += 60
+	} else if strings.Contains(candidate, "hdtv") {
+		score += 20
+	}
+
+	if strings.Contains(candidate, "x265") || strings.Contains(candidate, "hevc") {
+		score += 20
+	} else if strings.Contains(candidate, "x264") {
+		score += 10
+	}
+
+	return score
 }
 
 func infoHashFromMagnet(magnet string) string {

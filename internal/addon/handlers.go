@@ -26,7 +26,7 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	a.logger.Info("stream handler invoked", "url", r.URL.Path)
+	a.logger.Debug("stream handler invoked", "url", r.URL.Path)
 	typeStr, idStr, ok := parseStreamPath(r.URL.Path)
 	if !ok {
 		http.NotFound(w, r)
@@ -35,7 +35,8 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 
 	baseID, season, episode := splitID(idStr)
 	query := buildQuery(typeStr, baseID, season, episode)
-	a.logger.Info("stream request",
+
+	a.logger.Debug("stream request",
 		"type", typeStr,
 		"id", baseID,
 		"season", season,
