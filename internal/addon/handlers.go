@@ -2,6 +2,7 @@ package addon
 
 import (
 	"net/http"
+	"strings"
 
 	"scrapper/internal/indexer"
 )
@@ -27,23 +28,26 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.logger.Debug("stream handler invoked", "url", r.URL.Path)
-	typeStr, idStr, ok := parseStreamPath(r.URL.Path)
-	if !ok {
+	typeStr := r.PathValue("type")
+	idRaw := r.PathValue("id")
+	idStr, ok := strings.CutSuffix(idRaw, ".json")
+	if typeStr == "" || !ok || idStr == "" {
 		http.NotFound(w, r)
 		return
 	}
 
 	baseID, season, episode := splitID(idStr)
 	query := buildQuery(typeStr, baseID, season, episode)
-
 	a.logger.Debug("stream request",
-		"type", typeStr,
-		"id", baseID,
-		"season", season,
-		"episode", episode,
-		"query", query,
-		"remote", r.RemoteAddr,
+		"type", typeStr, // series
+		"id", baseID, // tt0386676
+		"season", season, // 5
+		"episode", episode, // 16
+		"query", query, // tt0386676 S05E16
+		"remote", r.RemoteAddr, // [::1]:62481
+
 	)
+
 	results := a.searchStreams(r.Context(), indexer.SearchQuery{
 		Type:    typeStr,
 		ID:      baseID,
@@ -51,7 +55,7 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		Season:  season,
 		Episode: episode,
 	})
-	a.logger.Info("stream results", "len:", len(results))
+	a.logger.Debug("stream results", "len:", len(results))
 	streams := a.buildTorboxStreamLinks(newRequestContext(r), results, typeStr, season, episode)
 	writeJSON(w, StreamResponse{Streams: streams})
 }

@@ -4,25 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 )
 
-func parseStreamPath(path string) (string, string, bool) {
-	trimmed := strings.TrimPrefix(path, "/stream/")
-	trimmed = strings.TrimSuffix(trimmed, ".json")
-	parts := strings.SplitN(trimmed, "/", 2)
-	if len(parts) != 2 {
-		return "", "", false
-	}
-	id, err := url.PathUnescape(parts[1])
-	if err != nil {
-		return "", "", false
-	}
-	return parts[0], id, true
-}
-
+/*
+* For `series` type, the ID format is expected to be `imdbID:season:episode`, e.g. `tt1234567:2:5`.
+* movie type should just be the imdbID, e.g. `tt1234567`.
+ */
 func splitID(id string) (string, int, int) {
 	parts := strings.Split(id, ":")
 	if len(parts) < 3 {

@@ -18,10 +18,9 @@ func (a *Addon) torboxStreamHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hash := strings.TrimPrefix(r.URL.Path, "/torbox/stream/")
-	hash = strings.TrimSuffix(hash, ".json")
-	hash = strings.TrimSpace(hash)
-	if hash == "" {
+	hashRaw := strings.TrimSpace(r.PathValue("hash"))
+	hash, ok := strings.CutSuffix(hashRaw, ".json")
+	if !ok || hash == "" {
 		http.NotFound(w, r)
 		return
 	}

@@ -23,6 +23,7 @@ func (a *Addon) searchStreams(ctx context.Context, query indexer.SearchQuery) []
 	for _, idx := range a.indexers {
 		go func() {
 			results, err := idx.Search(ctx, query)
+
 			if err == nil {
 				for i := range results {
 					if results[i].Source == "" {

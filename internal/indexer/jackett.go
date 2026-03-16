@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -41,7 +42,6 @@ func (j *Jackett) Name() string {
 }
 
 func (j *Jackett) Search(ctx context.Context, query SearchQuery) ([]Result, error) {
-	// imdbID := normalizeIMDBID(query.ID)
 	imdbID := query.ID
 	j.logger.Debug("Jackett search",
 		"imdb_id", imdbID,
@@ -50,25 +50,23 @@ func (j *Jackett) Search(ctx context.Context, query SearchQuery) ([]Result, erro
 		"season", query.Season,
 		"episode", query.Episode,
 	)
+
 	var results []jackett.Result
 	var err error
+
 	switch query.Type {
 	case "movie":
-		if imdbID != "" {
-			req := jackett.NewMovieSearch().WithIMDBID(imdbID).Build()
-			results, err = j.client.Fetch(ctx, req)
-		} else {
-			req := jackett.NewRawSearch().WithQuery(query.Query).Build()
-			results, err = j.client.Fetch(ctx, req)
-		}
+		req := jackett.NewMovieSearch().WithIMDBID(imdbID).Build()
+		results, err = j.client.Fetch(ctx, req)
+
 	case "series":
 		results, err = j.searchSeries(ctx, query, imdbID)
+
 	default:
-		req := jackett.NewRawSearch().WithQuery(query.Query).Build()
-		results, err = j.client.Fetch(ctx, req)
+		return nil, fmt.Errorf("unsupported search type: %s", query.Type)
 	}
+
 	if err != nil {
-		j.logger.Error("Jackett fetch error", "error", err)
 		return nil, err
 	}
 
@@ -86,16 +84,6 @@ func (j *Jackett) Search(ctx context.Context, query SearchQuery) ([]Result, erro
 	}
 
 	return out, nil
-}
-
-var imdbPattern = regexp.MustCompile(`^tt\\d{7,}$`)
-
-func normalizeIMDBID(id string) string {
-	id = strings.TrimSpace(id)
-	if imdbPattern.MatchString(id) {
-		return id
-	}
-	return ""
 }
 
 func isUnsupportedIMDBError(err error) bool {
@@ -202,8 +190,10 @@ func tokensMatch(candidate []string, title []string) bool {
 	return true
 }
 
-var seasonEpisodeTokenPattern = regexp.MustCompile(`(?i)^s?\d{1,2}e\d{1,2}$|^\d{1,2}x\d{1,2}$`)
-var seasonTokenPattern = regexp.MustCompile(`(?i)^s\d{1,2}$|^season\d{1,2}$|^s\d{1,2}-s\d{1,2}$|^s\d{1,2}to\d{1,2}$`)
+var (
+	seasonEpisodeTokenPattern = regexp.MustCompile(`(?i)^s?\d{1,2}e\d{1,2}$|^\d{1,2}x\d{1,2}$`)
+	seasonTokenPattern        = regexp.MustCompile(`(?i)^s\d{1,2}$|^season\d{1,2}$|^s\d{1,2}-s\d{1,2}$|^s\d{1,2}to\d{1,2}$`)
+)
 
 func isSeasonOrEpisodeToken(token string) bool {
 	return seasonEpisodeTokenPattern.MatchString(token) || seasonTokenPattern.MatchString(token)
