@@ -15,7 +15,6 @@ type Result struct {
 type SearchQuery struct {
 	Type    string
 	ID      string
-	Query   string
 	Season  int
 	Episode int
 }

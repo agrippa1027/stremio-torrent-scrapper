@@ -45,14 +45,12 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	baseID, season, episode := splitID(idStr)
-	query := buildQuery(typeStr, baseID, season, episode)
 
 	a.logger.Debug("stream request",
 		"type", typeStr, // series
 		"id", baseID, // tt0386676
 		"season", season, // 5
 		"episode", episode, // 16
-		"query", query, // tt0386676 S05E16
 		"remote", r.RemoteAddr, // [::1]:62481
 
 	)
@@ -60,7 +58,6 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 	results := a.searchStreams(r.Context(), indexer.SearchQuery{
 		Type:    typeStr,
 		ID:      baseID,
-		Query:   query,
 		Season:  season,
 		Episode: episode,
 	})

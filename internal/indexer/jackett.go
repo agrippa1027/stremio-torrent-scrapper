@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"scrapper/internal/tmdb"
@@ -46,7 +45,6 @@ func (j *Jackett) Search(ctx context.Context, query SearchQuery) ([]Result, erro
 
 	j.logger.Debug("Jackett search",
 		"imdb_id", imdbID,
-		"query", query.Query,
 		"type", query.Type,
 		"season", query.Season,
 		"episode", query.Episode,
@@ -239,12 +237,11 @@ func (j *Jackett) seriesRequests(query SearchQuery, imdbID string, title string)
 	*  complete season torrent
 	 */
 	if title != "" && query.Season > 0 {
-		requests = append(requests, j.buildTVSearchByTitle(title, query.Season, 0, true))
-		requests = append(requests, j.buildTVSearchByTitle(title, query.Season, 0, false))
+		requests = append(requests, j.buildTVSearchByTitle(title, query.Season, 0))
 	}
 
 	if title != "" && query.Season > 0 && query.Episode > 0 {
-		requests = append(requests, j.buildTVSearchByTitle(title, query.Season, query.Episode, false))
+		requests = append(requests, j.buildTVSearchByTitle(title, query.Season, query.Episode))
 	}
 
 	if imdbID != "" {
@@ -252,10 +249,6 @@ func (j *Jackett) seriesRequests(query SearchQuery, imdbID string, title string)
 		if query.Season > 0 && query.Episode > 0 {
 			requests = append(requests, j.buildTVSearchByIMDB(imdbID, query.Season, query.Episode))
 		}
-	}
-
-	if query.Query != "" {
-		requests = append(requests, jackett.NewRawSearch().WithQuery(query.Query).Build())
 	}
 
 	return requests
@@ -272,23 +265,14 @@ func (j *Jackett) buildTVSearchByIMDB(imdbID string, season int, episode int) *j
 	return tv.Build()
 }
 
-func (j *Jackett) buildTVSearchByTitle(title string, season int, episode int, multiSeason bool) *jackett.FetchRequest {
+func (j *Jackett) buildTVSearchByTitle(title string, season, episode int) *jackett.FetchRequest {
 	query := title
 	if season > 0 {
-		if multiSeason {
-			query = strings.TrimSpace(query + " S01-S" + twoDigits(season))
-		} else if episode > 0 {
-			query = strings.TrimSpace(query + " S" + twoDigits(season) + "E" + twoDigits(episode))
+		if episode > 0 {
+			query = strings.TrimSpace(query + " S" + fmt.Sprintf("%02d", season) + "E" + fmt.Sprintf("%02d", episode))
 		} else {
-			query = strings.TrimSpace(query + " S" + twoDigits(season))
+			query = strings.TrimSpace(query + " S" + fmt.Sprintf("%02d", season))
 		}
 	}
 	return jackett.NewTVSearch().WithQuery(query).Build()
-}
-
-func twoDigits(value int) string {
-	if value < 10 {
-		return "0" + strconv.Itoa(value)
-	}
-	return strconv.Itoa(value)
 }

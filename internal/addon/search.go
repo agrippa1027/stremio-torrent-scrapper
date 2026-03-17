@@ -2,8 +2,6 @@ package addon
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"scrapper/internal/indexer"
@@ -43,7 +41,6 @@ func (a *Addon) searchStreams(ctx context.Context, query indexer.SearchQuery) []
 			if res.err != nil {
 				a.logger.Warn("indexer search failed",
 					"indexer", res.name,
-					"query", query.Query,
 					"id", query.ID,
 					"error", res.err,
 				)
@@ -52,21 +49,18 @@ func (a *Addon) searchStreams(ctx context.Context, query indexer.SearchQuery) []
 			if len(res.results) == 0 {
 				a.logger.Info("indexer search empty",
 					"indexer", res.name,
-					"query", query.Query,
 					"id", query.ID,
 				)
 				continue
 			}
 			a.logger.Info("indexer search success",
 				"indexer", res.name,
-				"query", query.Query,
 				"id", query.ID,
 				"results", len(res.results),
 			)
 			combined = append(combined, res.results...)
 		case <-ctx.Done():
 			a.logger.Warn("indexer search timeout",
-				"query", query.Query,
 				"id", query.ID,
 				"error", ctx.Err(),
 			)
@@ -75,19 +69,4 @@ func (a *Addon) searchStreams(ctx context.Context, query indexer.SearchQuery) []
 	}
 
 	return combined
-}
-
-func buildQuery(typ string, id string, season int, episode int) string {
-	query := normalizeQuery(id)
-	if typ == "series" && season > 0 && episode > 0 {
-		query = fmt.Sprintf("%s S%02dE%02d", query, season, episode)
-	}
-	return strings.TrimSpace(query)
-}
-
-func normalizeQuery(raw string) string {
-	query := strings.ReplaceAll(raw, ".", " ")
-	query = strings.ReplaceAll(query, "_", " ")
-	query = strings.ReplaceAll(query, "-", " ")
-	return strings.TrimSpace(query)
 }

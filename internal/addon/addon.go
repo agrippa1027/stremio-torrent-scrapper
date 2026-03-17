@@ -1,3 +1,5 @@
+// Package addon implements the main logic for the media streaming addon,
+// including handling requests, managing indexers, and interacting with external services like Jackett and Torbox.
 package addon
 
 import (
