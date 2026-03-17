@@ -43,6 +43,7 @@ func (j *Jackett) Name() string {
 
 func (j *Jackett) Search(ctx context.Context, query SearchQuery) ([]Result, error) {
 	imdbID := query.ID
+
 	j.logger.Debug("Jackett search",
 		"imdb_id", imdbID,
 		"query", query.Query,
@@ -99,9 +100,10 @@ func (j *Jackett) tmdbTitleByIMDB(ctx context.Context, imdbID string) (string, e
 }
 
 func (j *Jackett) searchSeries(ctx context.Context, query SearchQuery, imdbID string) ([]jackett.Result, error) {
-	title := ""
-	if t, err := j.tmdbTitleByIMDB(ctx, imdbID); err == nil {
-		title = t
+	title, err := j.tmdbTitleByIMDB(ctx, imdbID)
+	if err != nil {
+		j.logger.Warn("Failed to get series title from TMDB", "imdb_id", imdbID, "error", err)
+		return nil, err
 	}
 
 	// requests are ordered by title whole season, title specific episode, IMDB whole season, IMDB specific episode

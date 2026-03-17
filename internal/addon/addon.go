@@ -61,7 +61,7 @@ func New(cfg Config, logger *slog.Logger) (*Addon, error) {
 }
 
 func (a *Addon) Register(mux *http.ServeMux) {
-	mux.HandleFunc("/manifest.json", a.manifestHandler)
-	mux.HandleFunc("/stream/{type}/{id}", a.streamHandler)
-	mux.HandleFunc("/torbox/stream/{hash}", a.torboxStreamHandler)
+	mux.HandleFunc("GET /manifest.json", a.manifestHandler)
+	mux.HandleFunc("GET /stream/{type}/{id}", a.streamHandler)
+	mux.HandleFunc("GET /torbox/stream/{hash}", a.torboxStreamHandler)
 }

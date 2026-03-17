@@ -10,6 +10,7 @@ import (
 )
 
 func (a *Addon) searchStreams(ctx context.Context, query indexer.SearchQuery) []indexer.Result {
+	// TODO: Get timeout from config
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
