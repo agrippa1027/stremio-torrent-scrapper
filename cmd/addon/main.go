@@ -5,25 +5,32 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"scrapper/internal/addon"
+	"scrapper/internal/addon/config"
 
 	"github.com/charmbracelet/log"
 )
 
 
 func main() {
-	cfg := addon.DefaultConfig()
-	loadConfigFile("config.yml", &cfg)
+	loadEnv()
 
-	port := cfg.Port
+	cfg ,err := config.LoadConfigFile("config.yml")
+	if err != nil {
+		log.Fatal("load config: %v", err)
+		return
+	}
 
-	logger := log.New(os.Stdout)
-	logger.SetLevel(log.DebugLevel)
+	logger := logger(os.Getenv("LOG_LEVEL"))
 
+	port := os.Getenv("PORT")
 
 	app, err := addon.New(cfg, logger)
 	if err != nil {
-		log.Fatalf("init addon: %v", err)
+		logger.Fatal("init addon: %v", err)
+		return
 	}
 
 	mux := http.NewServeMux()
@@ -39,5 +46,26 @@ func main() {
 	}
 
 	logger.Info("listening on port", "port", port)
-	logger.Warn(srv.ListenAndServe())
+	logger.Fatal("listen and serve", "err", srv.ListenAndServe())
+}
+
+
+func logger(level string) *log.Logger {
+	logLevel, err := log.ParseLevel(level)
+
+	if err != nil {
+		log.Fatal("parse log level: %v", err)
+	}
+
+	logger := log.New(os.Stdout)
+	logger.SetLevel(logLevel)
+	return logger
+}
+
+
+func loadEnv() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Warn("load env from file: %v", err)
+	}
 }
