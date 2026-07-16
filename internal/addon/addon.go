@@ -4,23 +4,24 @@ package addon
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"scrapper/internal/indexer"
 	"scrapper/internal/tmdb"
 	"scrapper/internal/torbox"
+
+	"github.com/charmbracelet/log"
 )
 
 type Addon struct {
 	indexers         []indexer.Indexer
 	manifest         Manifest
-	logger           *slog.Logger
+	logger           *log.Logger
 	torbox           *torbox.Client
 	torboxCachedOnly bool
 }
 
-func New(cfg Config, logger *slog.Logger) (*Addon, error) {
+func New(cfg Config, logger *log.Logger) (*Addon, error) {
 	if cfg.JackettURL == "" || cfg.JackettAPIKey == "" {
 		return nil, fmt.Errorf("missing Jackett config: set JACKETT_API_URL and JACKETT_API_KEY")
 	}
@@ -49,10 +50,6 @@ func New(cfg Config, logger *slog.Logger) (*Addon, error) {
 		return nil, err
 	}
 
-	if logger == nil {
-		logger = slog.Default()
-	}
-
 	return &Addon{
 		indexers:         indexers,
 		manifest:         cfg.Manifest,
@@ -65,5 +62,7 @@ func New(cfg Config, logger *slog.Logger) (*Addon, error) {
 func (a *Addon) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /manifest.json", a.manifestHandler)
 	mux.HandleFunc("GET /stream/{type}/{id}", a.streamHandler)
+	// NOTE: what is the point of this
+	// this should be not required
 	mux.HandleFunc("GET /torbox/stream/{hash}", a.torboxStreamHandler)
 }

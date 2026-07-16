@@ -1,24 +1,25 @@
 package main
 
 import (
-	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"scrapper/internal/addon"
+
+	"github.com/charmbracelet/log"
 )
+
 
 func main() {
 	cfg := addon.DefaultConfig()
 	loadConfigFile("config.yml", &cfg)
-	applyEnvOverrides(&cfg)
 
 	port := cfg.Port
 
-	logger := slog.New(newColorHandler(os.Stdout, slog.LevelDebug))
-	slog.SetDefault(logger)
+	logger := log.New(os.Stdout)
+	logger.SetLevel(log.DebugLevel)
+
 
 	app, err := addon.New(cfg, logger)
 	if err != nil {
@@ -37,6 +38,6 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	log.Printf("listening on :%s", port)
-	log.Fatal(srv.ListenAndServe())
+	logger.Info("listening on port", "port", port)
+	logger.Warn(srv.ListenAndServe())
 }

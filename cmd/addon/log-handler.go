@@ -1,3 +1,4 @@
+// TODO: This should be moved to infrastructure
 package main
 
 import (
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-type colorHandler struct {
+type logHandler struct {
 	w      io.Writer
 	min    slog.Level
 	attrs  []slog.Attr
@@ -19,25 +20,28 @@ type colorHandler struct {
 	mu     sync.Mutex
 }
 
-func newColorHandler(w io.Writer, min slog.Level) *colorHandler {
-	return &colorHandler{w: w, min: min}
+func newColorHandler(w io.Writer, min slog.Level) *logHandler {
+	return &logHandler{w: w, min: min}
 }
 
-func (h *colorHandler) Enabled(_ context.Context, level slog.Level) bool {
+func (h *logHandler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= h.min
 }
 
-func (h *colorHandler) Handle(_ context.Context, r slog.Record) error {
+func (h *logHandler) Handle(_ context.Context, r slog.Record) error {
 	var b strings.Builder
+
+	// Time
 	if !r.Time.IsZero() {
-		b.WriteString("time=")
 		b.WriteString(r.Time.Format(time.RFC3339Nano))
 		b.WriteByte(' ')
 	}
-	b.WriteString("level=")
+
+	// Level
 	b.WriteString(colorLevel(r.Level))
 	b.WriteByte(' ')
-	b.WriteString("msg=")
+
+	// Message
 	appendValue(&b, r.Message)
 
 	for _, attr := range h.attrs {
@@ -49,19 +53,22 @@ func (h *colorHandler) Handle(_ context.Context, r slog.Record) error {
 	})
 
 	b.WriteByte('\n')
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
 	_, err := io.WriteString(h.w, b.String())
+
 	return err
 }
 
-func (h *colorHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *logHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	clone := *h
 	clone.attrs = append(append([]slog.Attr{}, h.attrs...), attrs...)
 	return &clone
 }
 
-func (h *colorHandler) WithGroup(name string) slog.Handler {
+func (h *logHandler) WithGroup(name string) slog.Handler {
 	clone := *h
 	if name != "" {
 		clone.groups = append(append([]string{}, h.groups...), name)

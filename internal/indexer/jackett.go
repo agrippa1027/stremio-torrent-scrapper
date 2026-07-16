@@ -3,23 +3,23 @@ package indexer
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"scrapper/internal/tmdb"
 
+	"github.com/charmbracelet/log"
 	jackett "github.com/webtor-io/go-jackett"
 )
 
 type Jackett struct {
 	client *jackett.Client
-	logger *slog.Logger
+	logger *log.Logger
 	tmdb   *tmdb.Client
 }
 
-func NewJackett(client *http.Client, apiURL string, apiKey string, tmdbClient *tmdb.Client, logger *slog.Logger) (*Jackett, error) {
+func NewJackett(client *http.Client, apiURL string, apiKey string, tmdbClient *tmdb.Client, logger *log.Logger) (*Jackett, error) {
 	j, err := jackett.New(jackett.Settings{
 		ApiURL: apiURL,
 		ApiKey: apiKey,
@@ -30,7 +30,7 @@ func NewJackett(client *http.Client, apiURL string, apiKey string, tmdbClient *t
 	}
 
 	if logger == nil {
-		logger = slog.Default()
+		logger = log.Default()
 	}
 
 	return &Jackett{client: j, logger: logger, tmdb: tmdbClient}, nil
