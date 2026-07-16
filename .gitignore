@@ -1,3 +1,4 @@
 config.yml
 go.sum
 Main API.postman_collection.json
+.env

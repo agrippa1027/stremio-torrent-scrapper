@@ -3,49 +3,42 @@
 package addon
 
 import (
-	"fmt"
 	"net/http"
 
+	"scrapper/internal/addon/stremio"
 	"scrapper/internal/indexer"
 	"scrapper/internal/tmdb"
 	"scrapper/internal/torbox"
+
+	"scrapper/internal/addon/config"
 
 	"github.com/charmbracelet/log"
 )
 
 type Addon struct {
 	indexers         []indexer.Indexer
-	manifest         Manifest
+	manifest         stremio.Manifest
 	logger           *log.Logger
 	torbox           *torbox.Client
-	torboxCachedOnly bool
 }
 
-func New(cfg Config, logger *log.Logger) (*Addon, error) {
-	if cfg.JackettURL == "" || cfg.JackettAPIKey == "" {
-		return nil, fmt.Errorf("missing Jackett config: set JACKETT_API_URL and JACKETT_API_KEY")
-	}
-	if cfg.TorboxAPIKey == "" {
-		return nil, fmt.Errorf("missing Torbox config: set TORBOX_API_KEY")
-	}
-
+func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 	client := indexer.NewHTTPClient()
 	var err error
 
-	var tmdbClient *tmdb.Client
-	if cfg.TMDBAPIKey != "" {
-		tmdbClient, err = tmdb.NewClient(cfg.TMDBAPIKey, client)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	jackettIndexer, err := indexer.NewJackett(client, cfg.JackettURL, cfg.JackettAPIKey, tmdbClient, logger)
+	tmdbClient, err := tmdb.NewClient(cfg.TMDB, client)
 	if err != nil {
 		return nil, err
 	}
+
+	jackettIndexer, err := indexer.NewJackett(client, tmdbClient, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	indexers := []indexer.Indexer{jackettIndexer}
-	torboxClient, err := torbox.NewClient(cfg.TorboxBaseURL, cfg.TorboxAPIKey, client)
+
+	torboxClient, err := torbox.NewClient(cfg.Torbox, client)
 	if err != nil {
 		return nil, err
 	}
@@ -55,14 +48,10 @@ func New(cfg Config, logger *log.Logger) (*Addon, error) {
 		manifest:         cfg.Manifest,
 		logger:           logger,
 		torbox:           torboxClient,
-		torboxCachedOnly: cfg.TorboxCachedOnly,
 	}, nil
 }
 
 func (a *Addon) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /manifest.json", a.manifestHandler)
 	mux.HandleFunc("GET /stream/{type}/{id}", a.streamHandler)
-	// NOTE: what is the point of this
-	// this should be not required
-	mux.HandleFunc("GET /torbox/stream/{hash}", a.torboxStreamHandler)
 }
