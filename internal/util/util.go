@@ -1,4 +1,4 @@
-package addon
+package util
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 * For `series` type, the ID format is expected to be `imdbID:season:episode`, e.g. `tt1234567:2:5`.
 * movie type should just be the imdbID, e.g. `tt1234567`.
  */
-func splitID(id string) (string, int, int) {
+func SplitID(id string) (string, int, int) {
 	parts := strings.Split(id, ":")
 	if len(parts) < 3 {
 		return id, 0, 0
@@ -22,14 +22,14 @@ func splitID(id string) (string, int, int) {
 	return parts[0], season, episode
 }
 
-func writeJSON(w http.ResponseWriter, v any) {
+func WriteJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(v)
 }
 
-func setCORSHeaders(w http.ResponseWriter) {
+func SetCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")

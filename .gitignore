@@ -2,3 +2,10 @@ config.yml
 go.sum
 Main API.postman_collection.json
 .env
+.claude
+
+go-ptt
+data
+cmd/cli
+
+.DS_Store

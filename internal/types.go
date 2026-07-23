@@ -1,16 +1,5 @@
 package addon
 
-type Manifest struct {
-	ID          string   `json:"id"`
-	Version     string   `json:"version"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Resources   []string `json:"resources"`
-	Types       []string `json:"types"`
-	Catalogs    []any    `json:"catalogs"`
-	Logo        string   `json:"logo,omitempty"`
-}
-
 type Stream struct {
 	Name     string   `json:"name,omitempty"`
 	Title    string   `json:"title,omitempty"`

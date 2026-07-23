@@ -1,33 +1,35 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/joho/godotenv"
 
-	"scrapper/internal/addon"
-	"scrapper/internal/addon/config"
-
 	"github.com/charmbracelet/log"
-)
 
+	"scrapper/infrastructure"
+	"scrapper/internal/config"
+	"scrapper/internal/stremio"
+)
 
 func main() {
 	loadEnv()
 
-	cfg ,err := config.LoadConfigFile("config.yml")
+	cfg, err := config.LoadConfigFile("config.yml")
 	if err != nil {
 		log.Fatal("load config: %v", err)
 		return
 	}
 
-	logger := logger(os.Getenv("LOG_LEVEL"))
-
+	// TODO: check on this
+	ctx := context.Background()
+	logger := infrastructure.FromContext(ctx)
 	port := os.Getenv("PORT")
 
-	app, err := addon.New(cfg, logger)
+	app, err := stremio.New(cfg, logger)
 	if err != nil {
 		logger.Fatal("init addon: %v", err)
 		return
@@ -48,20 +50,6 @@ func main() {
 	logger.Info("listening on port", "port", port)
 	logger.Fatal("listen and serve", "err", srv.ListenAndServe())
 }
-
-
-func logger(level string) *log.Logger {
-	logLevel, err := log.ParseLevel(level)
-
-	if err != nil {
-		log.Fatal("parse log level: %v", err)
-	}
-
-	logger := log.New(os.Stdout)
-	logger.SetLevel(logLevel)
-	return logger
-}
-
 
 func loadEnv() {
 	err := godotenv.Load()

@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"scrapper/infrastructure"
 	"scrapper/internal/config"
 )
 
 var ErrMissingAPIKey = errors.New("missing TMDB API key")
-
 
 type Client struct {
 	baseURL *url.URL
@@ -27,7 +27,6 @@ type Client struct {
 type TVResults struct {
 	Name string `json:"name"`
 }
-
 
 func NewClient(tmdbCfg config.TMDBConfig, httpClient *http.Client) (*Client, error) {
 	apiKey := os.Getenv("TMDB_API_KEY")
@@ -53,7 +52,11 @@ func NewClient(tmdbCfg config.TMDBConfig, httpClient *http.Client) (*Client, err
 	}, nil
 }
 
+// TODO: This have to be cached
+// can be cahced for longer period
 func (c *Client) TVTitleByIMDB(ctx context.Context, imdbID string) ([]TVResults, error) {
+	logger := infrastructure.FromContext(ctx)
+
 	imdbID = strings.TrimSpace(imdbID)
 	if imdbID == "" {
 		return nil, errors.New("missing imdb id")
@@ -81,11 +84,10 @@ func (c *Client) TVTitleByIMDB(ctx context.Context, imdbID string) ([]TVResults,
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return nil, err
 	}
-
+	logger.Debug("TVTitleByIMDB", "payload", payload)
 
 	return payload.TVResults, nil
 }
-
 
 func (c *Client) buildRequest(ctx context.Context, method, imdbID string) (*http.Request, error) {
 	u := *c.baseURL
@@ -102,6 +104,6 @@ func (c *Client) buildRequest(ctx context.Context, method, imdbID string) (*http
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer " + c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	return req, nil
 }

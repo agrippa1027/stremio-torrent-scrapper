@@ -1,4 +1,4 @@
-package addon
+package torbox
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"scrapper/internal/torbox"
 )
 
 func (a *Addon) torboxStreamHandler(w http.ResponseWriter, r *http.Request) {

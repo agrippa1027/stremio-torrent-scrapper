@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -17,9 +18,10 @@ import (
 )
 
 type Client struct {
-	baseURL *url.URL
-	apiKey  string
-	http    *http.Client
+	baseURL   *url.URL
+	apiKey    string
+	http      *http.Client
+	cacheOnly bool
 }
 
 type APIError struct {
@@ -65,24 +67,34 @@ type Torrent struct {
 	Files            []TorrentFile `json:"files"`
 }
 
-func NewClient(baseURL string, apiKey string, httpClient *http.Client) (*Client, error) {
+func NewClient(torBox TorboxConfig, httpClient *http.Client) (*Client, error) {
+	apiKey := os.Getenv("TORBOX_API_KEY")
 	if apiKey == "" {
 		return nil, errors.New("missing Torbox API key")
 	}
-	if baseURL == "" {
+
+	baseUrl := torBox.BaseURL
+	if baseUrl == "" {
 		return nil, errors.New("missing Torbox base URL")
 	}
 
-	parsed, err := url.Parse(strings.TrimRight(baseURL, "/"))
+	parsed, err := url.Parse(strings.TrimRight(baseUrl, "/"))
 	if err != nil {
 		return nil, fmt.Errorf("parse torbox base url: %w", err)
 	}
 
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 15 * time.Second}
+		httpClient = &http.Client{
+			Timeout: time.Duration(torBox.Timeout) * time.Second,
+		}
 	}
 
-	return &Client{baseURL: parsed, apiKey: apiKey, http: httpClient}, nil
+	return &Client{
+		baseURL:   parsed,
+		apiKey:    apiKey,
+		http:      httpClient,
+		cacheOnly: torBox.CachedOnly,
+	}, nil
 }
 
 func (c *Client) CreateTorrent(ctx context.Context, magnet string, addOnlyIfCached bool) (TorrentCreateResult, error) {

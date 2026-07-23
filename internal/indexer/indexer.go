@@ -1,25 +1,29 @@
 package indexer
 
-import "context"
+import (
+	"context"
+)
 
-type Result struct {
+type Torrent struct {
 	Title    string
 	InfoHash string
 	Magnet   string
-	Size     int64
-	Seeds    int
-	Source   string
-	PageURL  string
+	Size     uint64
+	Tracker  string
+	Files    uint
+
+	TMDBTitle string
 }
 
 type SearchQuery struct {
-	Type    string
-	ID      string
-	Season  int
-	Episode int
+	Type      string
+	TMDBTitle string
+	ID        string // TODO: we don't really need this
+	Season    int
+	Episode   int
 }
 
 type Indexer interface {
-	Search(ctx context.Context, query SearchQuery) ([]Result, error)
+	Search(ctx context.Context, query SearchQuery) ([]Torrent, error)
 	Name() string
 }

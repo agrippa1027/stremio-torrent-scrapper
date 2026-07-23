@@ -1,25 +1,24 @@
-// Package addon implements the main logic for the media streaming addon,
-// including handling requests, managing indexers, and interacting with external services like Jackett and Torbox.
-package addon
+// Package stremio implements stremio addon logic.
+// contains logic for handling stremio requests and interacting with external services.
+package stremio
 
 import (
 	"net/http"
 
-	"scrapper/internal/addon/stremio"
 	"scrapper/internal/indexer"
 	"scrapper/internal/tmdb"
 	"scrapper/internal/torbox"
 
-	"scrapper/internal/addon/config"
-
 	"github.com/charmbracelet/log"
+
+	"scrapper/internal/config"
 )
 
 type Addon struct {
-	indexers         []indexer.Indexer
-	manifest         stremio.Manifest
-	logger           *log.Logger
-	torbox           *torbox.Client
+	indexers []indexer.Indexer
+	manifest Manifest
+	logger   *log.Logger
+	torbox   *torbox.Client
 }
 
 func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
@@ -43,11 +42,13 @@ func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 		return nil, err
 	}
 
+	manifest := NewManifest(cfg.Manifest)
+
 	return &Addon{
-		indexers:         indexers,
-		manifest:         cfg.Manifest,
-		logger:           logger,
-		torbox:           torboxClient,
+		indexers: indexers,
+		manifest: manifest,
+		logger:   logger,
+		torbox:   torboxClient,
 	}, nil
 }
 
