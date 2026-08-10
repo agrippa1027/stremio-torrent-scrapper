@@ -4,6 +4,13 @@ import (
 	"context"
 )
 
+type QType string
+
+const (
+	QTypeMovie  QType = "movie"
+	QTypeSeries QType = "series"
+)
+
 type Torrent struct {
 	Title    string
 	InfoHash string
@@ -16,7 +23,7 @@ type Torrent struct {
 }
 
 type SearchQuery struct {
-	Type      string
+	Type      QType
 	TMDBTitle string
 	ID        string // TODO: we don't really need this
 	Season    int

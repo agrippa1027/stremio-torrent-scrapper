@@ -9,3 +9,4 @@ data
 cmd/cli
 
 .DS_Store
+.omx

@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"scrapper/infrastructure"
-
 	"scrapper/internal/indexer"
 
 	jackett "github.com/webtor-io/go-jackett"
@@ -35,29 +33,33 @@ func (j *Jackett) Name() string {
 	return "Jackett"
 }
 
-func (j *Jackett) Search(ctx context.Context, query indexer.SearchQuery) ([]indexer.Torrent, error) {
-	logger := infrastructure.FromContext(ctx)
-	logger.Debug("Jackett search",
-		"imdb_id", query.ID,
-		"type", query.Type,
-		"season", query.Season,
-		"episode", query.Episode,
-	)
-
+func (j *Jackett) Search(ctx context.Context,
+	query indexer.SearchQuery) ([]indexer.Torrent, error) {
 	var results []jackett.Result
 	var err error
+	var req *jackett.FetchRequest
 
-	// TODO: should do the search by tracker.
-	// this would allow us to utilize concurrent search
 	switch query.Type {
-	case "movie":
-		req := jackett.NewMovieSearch().WithIMDBID(query.ID).Build()
-		results, err = j.client.Fetch(ctx, req)
-	case "series":
-		results, err = j.searchSeries(ctx, query, query.ID)
+	case indexer.QTypeMovie:
+		req = jackett.
+			NewMovieSearch().
+			WithQuery(query.TMDBTitle).
+			Build()
+	case indexer.QTypeSeries:
+		req = jackett.
+			NewTVSearch().
+			WithQuery(query.TMDBTitle).
+			WithSeason(uint(query.Season)).
+			WithEpisode(uint(query.Episode)).
+			Build()
 	default:
 		return nil, fmt.Errorf("unsupported search type: %s", query.Type)
 	}
+
+	// NOTE:
+	// Fetch will concurrently request data from multiple trackers when possible.
+	// we can set number of concurrent requests with WithMaxConcurrency
+	results, err = j.client.Fetch(ctx, req)
 
 	if err != nil {
 		return nil, err

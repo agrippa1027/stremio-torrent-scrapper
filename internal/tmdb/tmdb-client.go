@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"scrapper/infrastructure"
+	"scrapper/logging"
 	"scrapper/internal/config"
 )
 
@@ -25,7 +25,7 @@ type Client struct {
 }
 
 type TVResults struct {
-	Name string `json:"name"`
+	Name string `json:"name" redis:"name"`
 }
 
 func NewClient(tmdbCfg config.TMDBConfig, httpClient *http.Client) (*Client, error) {
@@ -55,7 +55,7 @@ func NewClient(tmdbCfg config.TMDBConfig, httpClient *http.Client) (*Client, err
 // TODO: This have to be cached
 // can be cahced for longer period
 func (c *Client) TVTitleByIMDB(ctx context.Context, imdbID string) ([]TVResults, error) {
-	logger := infrastructure.FromContext(ctx)
+	logger := logging.FromContext(ctx)
 
 	imdbID = strings.TrimSpace(imdbID)
 	if imdbID == "" {

@@ -2,14 +2,14 @@ package jackett
 
 import (
 	"context"
-	"scrapper/infrastructure"
+	"scrapper/logging"
 	"scrapper/internal/indexer"
 
 	jackett "github.com/webtor-io/go-jackett"
 )
 
 func (j *Jackett) searchSeries(ctx context.Context, query indexer.SearchQuery, imdbID string) ([]jackett.Result, error) {
-	logger := infrastructure.FromContext(ctx)
+	logger := logging.FromContext(ctx)
 
 	logger.Debug("searchSeries", "title", query.TMDBTitle, "season", query.Season, "episode", query.Episode)
 

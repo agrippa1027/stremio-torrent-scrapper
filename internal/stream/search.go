@@ -2,25 +2,25 @@ package stream
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
-	"scrapper/infrastructure"
 	"scrapper/internal/filter"
 	"scrapper/internal/indexer"
 	"scrapper/internal/tmdb"
+	"scrapper/logging"
+	"scrapper/redis"
 )
-
-// 1. fetch title from tmdb
-// 2. create serach Query
 
 func SearchStreams(
 	ctx context.Context,
-	query SearchQuery, // TODO: have to think wether SearchQuery exposed at this level
+	query SearchQuery,
 	indexers []indexer.Indexer,
 	tmdbClient *tmdb.Client,
 ) []Stream {
-	logger := infrastructure.FromContext(ctx)
+	logger := logging.FromContext(ctx)
 
 	logger.Debug("stream request",
 		"type", query.Type,
@@ -35,6 +35,20 @@ func SearchStreams(
 
 	// TODO: wiered ass api. have to deal with this later
 	tmdbResult, err := tmdbClient.TVTitleByIMDB(ctx, query.ID)
+
+	data, err := json.Marshal(tmdbResult)
+
+	if err != nil {
+	    logger.Error("json.Marshal", "err", err)
+	}
+
+	redisClient := redis.NewRedisClient()
+	res, err := redisClient.Set(ctx, fmt.Sprintf("tmdb:%s", query.ID), data, 0).Result()
+	if err != nil {
+		logger.Error("redisClient.HSet", "err", err)
+	}
+	logger.Debug("redisClient.HSet", "res", res)
+
 	if err != nil {
 		logger.Error("tmdbClient.TVTitleByIMDB", "err", err)
 		return nil
@@ -61,7 +75,7 @@ func SearchStreams(
 		go func() {
 			defer wg.Done()
 			results, err := searchIndexer(ctx, indexer.SearchQuery{
-				Type:      query.Type,
+				Type:      indexer.QType(query.Type),
 				TMDBTitle: tmdbTitle,
 				ID:        query.ID,
 				Season:    query.Season,
@@ -120,7 +134,7 @@ func searchIndexer(ctx context.Context, query indexer.SearchQuery,
 
 func parseTorrents(ctx context.Context, results []indexer.Torrent,
 	tmdbTitle string) []Stream {
-	logger := infrastructure.FromContext(ctx)
+	logger := logging.FromContext(ctx)
 	streams := make([]Stream, 0, len(results))
 	for _, result := range results {
 
