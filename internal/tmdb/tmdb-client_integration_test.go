@@ -28,7 +28,7 @@ func newLiveClient(t *testing.T) *Client {
 		Timeout: 30,
 	}
 
-	client, err := NewClient(cfg, nil)
+	client, err := New(cfg, nil, testLogger())
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		results, err := client.TVTitleByIMDB(ctx, "tt0903747") // Breaking Bad
+		results, err := client.Title(ctx, "tt0903747") // Breaking Bad
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -59,7 +59,7 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		results, err := client.TVTitleByIMDB(ctx, "  tt0944947  ") // Game of Thrones
+		results, err := client.Title(ctx, "  tt0944947  ") // Game of Thrones
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -75,7 +75,7 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		results, err := client.TVTitleByIMDB(ctx, "tt0111161") // The Shawshank Redemption (film)
+		results, err := client.Title(ctx, "tt0111161") // The Shawshank Redemption (film)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -88,7 +88,7 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		results, err := client.TVTitleByIMDB(ctx, "tt9999999999")
+		results, err := client.Title(ctx, "tt9999999999")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -101,7 +101,7 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel before the request is issued
 
-		results, err := client.TVTitleByIMDB(ctx, "tt0903747")
+		results, err := client.Title(ctx, "tt0903747")
 		if err == nil {
 			t.Fatalf("expected an error for a cancelled context, got results %v", results)
 		}

@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
+
 	"scrapper/internal/config"
-	"scrapper/logging"
 )
 
 var ErrMissingAPIKey = errors.New("missing TMDB API key")
@@ -22,13 +23,14 @@ type Client struct {
 	baseURL *url.URL
 	apiKey  string
 	http    *http.Client
+	logger  *log.Logger
 }
 
 type TVResults struct {
 	Name string `json:"name" redis:"name"`
 }
 
-func NewClient(tmdbCfg config.TMDBConfig, httpClient *http.Client) (*Client, error) {
+func New(tmdbCfg config.TMDBConfig, httpClient *http.Client, logger *log.Logger) (*Client, error) {
 	apiKey := os.Getenv("TMDB_API_KEY")
 	if apiKey == "" {
 		return nil, ErrMissingAPIKey
@@ -49,20 +51,17 @@ func NewClient(tmdbCfg config.TMDBConfig, httpClient *http.Client) (*Client, err
 		baseURL: parsed,
 		apiKey:  apiKey,
 		http:    httpClient,
+		logger:  logger,
 	}, nil
 }
 
-// TODO: This have to be cached
-// can be cahced for longer period
-func (c *Client) TVTitleByIMDB(ctx context.Context, imdbID string) ([]TVResults, error) {
-	logger := logging.FromContext(ctx)
-
-	imdbID = strings.TrimSpace(imdbID)
-	if imdbID == "" {
-		return nil, errors.New("missing imdb id")
+func (c *Client) Title(ctx context.Context, id string) ([]TVResults, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("imdb id is required")
 	}
 
-	req, err := c.buildRequest(ctx, http.MethodGet, imdbID)
+	req, err := c.request(ctx, http.MethodGet, id)
 	if err != nil {
 		return nil, err
 	}
@@ -84,21 +83,22 @@ func (c *Client) TVTitleByIMDB(ctx context.Context, imdbID string) ([]TVResults,
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return nil, err
 	}
-	logger.Debug("TVTitleByIMDB", "payload", payload)
+	c.logger.Debug("TVTitleByIMDB", "payload", payload)
 
 	return payload.TVResults, nil
 }
 
-func (c *Client) buildRequest(ctx context.Context, method, imdbID string) (*http.Request, error) {
+func (c *Client) request(ctx context.Context, method, id string) (*http.Request, error) {
 	u := *c.baseURL
 
-	u.Path = path.Join(u.Path, "find", imdbID)
+	u.Path = path.Join(u.Path, "find", id)
 
 	q := u.Query()
 	q.Set("external_source", "imdb_id")
 
 	u.RawQuery = q.Encode()
 
+	// TODO: This shoudld be request with timeout
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
 	if err != nil {
 		return nil, err

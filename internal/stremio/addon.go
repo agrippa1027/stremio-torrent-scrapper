@@ -25,7 +25,7 @@ func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 	client := indexer.NewHTTPClient()
 	var err error
 
-	tmdbClient, err := tmdb.NewClient(cfg.TMDB, client)
+	tmdbClient, err := tmdb.New(cfg.TMDB, client, logger)
 	if err != nil {
 		return nil, err
 	}

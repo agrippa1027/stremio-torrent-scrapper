@@ -11,46 +11,46 @@ import (
 	"scrapper/internal/indexer"
 	"scrapper/internal/tmdb"
 	"scrapper/logging"
-	"scrapper/redis"
+
+	"github.com/charmbracelet/log"
+	"github.com/redis/go-redis/v9"
 )
 
-func SearchStreams(
-	ctx context.Context,
-	query SearchQuery,
-	indexers []indexer.Indexer,
-	tmdbClient *tmdb.Client,
-) []Stream {
-	logger := logging.FromContext(ctx)
+type SearchService struct {
+	redis      *redis.Client
+	tmdbClient *tmdb.Client
+	indexers   []indexer.Indexer
+	logger     *log.Logger
 
-	logger.Debug("stream request",
+	// configs
+	timeout time.Duration
+}
+
+func (s *SearchService) SearchStreams(ctx context.Context, query SearchQuery) []Stream {
+	s.logger.Debug("stream request",
 		"type", query.Type,
 		"id", query.ID,
 		"season", query.Season,
 		"episode", query.Episode,
 	)
-
-	// TODO: Get timeout from config
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	// TODO: wiered ass api. have to deal with this later
-	tmdbResult, err := tmdbClient.TVTitleByIMDB(ctx, query.ID)
-
+	tmdbResult, err := s.tmdbClient.Title(ctx, query.ID)
 	data, err := json.Marshal(tmdbResult)
 
 	if err != nil {
-		logger.Error("json.Marshal", "err", err)
+		s.logger.Error("json.Marshal", "err", err)
 	}
 
-	redisClient := redis.NewRedisClient()
-	res, err := redisClient.Set(ctx, fmt.Sprintf("tmdb:%s", query.ID), data, 0).Result()
-	if err != nil {
-		logger.Error("redisClient.HSet", "err", err)
+	key := fmt.Sprintf("tmdb:%s", query.ID)
+
+	if err := s.redis.Set(ctx, key, data, 0).Err(); err != nil {
+		return fmt.Errorf("cache TMDB result: %w", err)
 	}
-	logger.Debug("redisClient.HSet", "res", res)
 
 	if err != nil {
-		logger.Error("tmdbClient.TVTitleByIMDB", "err", err)
+		s.logger.Error("tmdbClient.TVTitleByIMDB", "err", err)
 		return nil
 	}
 	tmdbTitle := tmdbResult[0].Name

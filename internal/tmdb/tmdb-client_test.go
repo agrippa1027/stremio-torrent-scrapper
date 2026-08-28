@@ -3,10 +3,17 @@ package tmdb
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
+
+	"github.com/charmbracelet/log"
 
 	"scrapper/internal/config"
 )
+
+func testLogger() *log.Logger {
+	return log.New(io.Discard)
+}
 
 func testConfig() config.TMDBConfig {
 	return config.TMDBConfig{
@@ -18,7 +25,7 @@ func testConfig() config.TMDBConfig {
 func TestNewClient_MissingAPIKey(t *testing.T) {
 	t.Setenv("TMDB_API_KEY", "")
 
-	client, err := NewClient(testConfig(), nil)
+	client, err := New(testConfig(), nil, testLogger())
 	if !errors.Is(err, ErrMissingAPIKey) {
 		t.Fatalf("expected ErrMissingAPIKey, got %v", err)
 	}
@@ -30,7 +37,7 @@ func TestNewClient_MissingAPIKey(t *testing.T) {
 func TestNewClient_Success(t *testing.T) {
 	t.Setenv("TMDB_API_KEY", "dummy")
 
-	client, err := NewClient(testConfig(), nil)
+	client, err := New(testConfig(), nil, testLogger())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -45,13 +52,13 @@ func TestNewClient_Success(t *testing.T) {
 func TestTVTitleByIMDB_EmptyID(t *testing.T) {
 	t.Setenv("TMDB_API_KEY", "dummy")
 
-	client, err := NewClient(testConfig(), nil)
+	client, err := New(testConfig(), nil, testLogger())
 	if err != nil {
 		t.Fatalf("unexpected error building client: %v", err)
 	}
 
 	// The empty-id guard fires before any HTTP call, so this stays offline.
-	results, err := client.TVTitleByIMDB(context.Background(), "   ")
+	results, err := client.Title(context.Background(), "   ")
 	if err == nil {
 		t.Fatal("expected an error for empty imdb id, got nil")
 	}
