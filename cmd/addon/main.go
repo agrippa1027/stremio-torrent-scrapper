@@ -10,9 +10,9 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"scrapper/infrastructure"
 	"scrapper/internal/config"
 	"scrapper/internal/stremio"
+	"scrapper/logging"
 )
 
 func main() {
@@ -25,8 +25,9 @@ func main() {
 	}
 
 	// TODO: check on this
+	// check what? dumb fucking comments
 	ctx := context.Background()
-	logger := infrastructure.FromContext(ctx)
+	logger := logging.FromContext(ctx)
 	port := os.Getenv("PORT")
 
 	app, err := stremio.New(cfg, logger)

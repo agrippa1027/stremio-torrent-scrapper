@@ -1,16 +1,7 @@
 package stream
 
-// {
-//	jackket resutl (indexer)
-//	ptt paresed
-// }
-//
-//
-// And Stream will contain only the relevent
-// flatten struct
-
 type SearchQuery struct {
-	Type    string
+	Type    string // Movie or TVShow
 	ID      string
 	Season  int
 	Episode int

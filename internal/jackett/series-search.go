@@ -2,8 +2,8 @@ package jackett
 
 import (
 	"context"
-	"scrapper/logging"
 	"scrapper/internal/indexer"
+	"scrapper/logging"
 
 	jackett "github.com/webtor-io/go-jackett"
 )

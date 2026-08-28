@@ -39,7 +39,7 @@ func SearchStreams(
 	data, err := json.Marshal(tmdbResult)
 
 	if err != nil {
-	    logger.Error("json.Marshal", "err", err)
+		logger.Error("json.Marshal", "err", err)
 	}
 
 	redisClient := redis.NewRedisClient()

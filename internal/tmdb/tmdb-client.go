@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"scrapper/logging"
 	"scrapper/internal/config"
+	"scrapper/logging"
 )
 
 var ErrMissingAPIKey = errors.New("missing TMDB API key")
