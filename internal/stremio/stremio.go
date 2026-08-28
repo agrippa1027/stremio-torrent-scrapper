@@ -1,6 +1,6 @@
 package stremio
 
-import "scrapper/internal/addon/config"
+import "scrapper/internal/config"
 
 type Manifest struct {
 	ID          string

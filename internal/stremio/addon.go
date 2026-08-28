@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"scrapper/internal/indexer"
+	"scrapper/internal/jackett"
 	"scrapper/internal/tmdb"
 	"scrapper/internal/torbox"
 
@@ -15,10 +16,11 @@ import (
 )
 
 type Addon struct {
-	indexers []indexer.Indexer
-	manifest Manifest
-	logger   *log.Logger
-	torbox   *torbox.Client
+	tmdbClient *tmdb.Client
+	indexer    indexer.Indexer
+	manifest   Manifest
+	logger     *log.Logger
+	torbox     *torbox.Client
 }
 
 func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
@@ -30,12 +32,10 @@ func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 		return nil, err
 	}
 
-	jackettIndexer, err := indexer.NewJackett(client, tmdbClient, logger)
+	jackett, err := jackett.New(client, logger)
 	if err != nil {
 		return nil, err
 	}
-
-	indexers := []indexer.Indexer{jackettIndexer}
 
 	torboxClient, err := torbox.NewClient(cfg.Torbox, client)
 	if err != nil {
@@ -45,10 +45,11 @@ func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 	manifest := NewManifest(cfg.Manifest)
 
 	return &Addon{
-		indexers: indexers,
-		manifest: manifest,
-		logger:   logger,
-		torbox:   torboxClient,
+		tmdbClient: tmdbClient,
+		indexer:    jackett,
+		manifest:   manifest,
+		logger:     logger,
+		torbox:     torboxClient,
 	}, nil
 }
 

@@ -8,14 +8,16 @@ import (
 
 	"scrapper/internal/indexer"
 
+	"github.com/charmbracelet/log"
 	jackett "github.com/webtor-io/go-jackett"
 )
 
 type Jackett struct {
 	client *jackett.Client
+	logger *log.Logger
 }
 
-func NewJackett(client *http.Client) (*Jackett, error) {
+func New(client *http.Client, logger *log.Logger) (*Jackett, error) {
 	j, err := jackett.New(jackett.Settings{
 		ApiURL: os.Getenv("JACKETT_API_URL"),
 		ApiKey: os.Getenv("JACKETT_API_KEY"),
@@ -26,7 +28,7 @@ func NewJackett(client *http.Client) (*Jackett, error) {
 		return nil, err
 	}
 
-	return &Jackett{client: j}, nil
+	return &Jackett{client: j, logger: logger}, nil
 }
 
 func (j *Jackett) Name() string {
