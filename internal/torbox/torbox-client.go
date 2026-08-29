@@ -203,9 +203,19 @@ func (c *Client) CheckCached(ctx context.Context, hash string) (bool, error) {
 	q.Set("format", "list")
 	q.Set("list_files", "false")
 	var raw json.RawMessage
-	if err := c.doJSON(ctx, http.MethodGet, "/torrents/checkcached", q, nil, "", &raw); err != nil {
+
+	if err := c.doJSON(
+		ctx,
+		http.MethodGet,
+		"/torrents/checkcached",
+		q,
+		nil,
+		"",
+		&raw,
+	); err != nil {
 		return false, err
 	}
+
 	if len(raw) == 0 || string(raw) == "null" {
 		return false, nil
 	}
@@ -225,7 +235,15 @@ func (c *Client) CheckCached(ctx context.Context, hash string) (bool, error) {
 	return false, nil
 }
 
-func (c *Client) doJSON(ctx context.Context, method string, endpoint string, query url.Values, body io.Reader, contentType string, out any) error {
+func (c *Client) doJSON(
+	ctx context.Context,
+	method string,
+	endpoint string,
+	query url.Values,
+	body io.Reader,
+	contentType string,
+	out any,
+) error {
 	u := *c.baseURL
 	endpoint = strings.TrimPrefix(endpoint, "/")
 	u.Path = path.Join(u.Path, endpoint)

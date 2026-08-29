@@ -7,26 +7,55 @@ import (
 	"scrapper/internal/filter"
 	"scrapper/internal/jackett"
 	"scrapper/internal/tmdb"
-	"scrapper/logging"
+	"scrapper/internal/torbox"
 
 	"github.com/charmbracelet/log"
 	"github.com/redis/go-redis/v9"
 )
 
-type SearchService struct {
+type StreamService struct {
 	redis      *redis.Client
 	tmdbClient *tmdb.Client
 	jackett    *jackett.Jackett
+	torbox     *torbox.Client
 	logger     *log.Logger
 
 	// configs
 	timeout time.Duration
 }
 
-func (s *SearchService) Search(ctx context.Context, query SearchQuery) ([]Stream, error) {
+func New(
+	jackett *jackett.Jackett,
+	torbox *torbox.Client,
+	logger *log.Logger,
+	timeout time.Duration,
+) (*StreamService, error) {
+	return &StreamService{
+		jackett: jackett,
+		torbox:  torbox,
+		logger:  logger,
+		timeout: timeout,
+	}, nil
+}
+
+func (s *StreamService) Search(ctx context.Context, query SearchQuery) ([]Stream, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
+	result, err := s.parseTorrents(ctx, query)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result) == 0 {
+		return nil, nil
+	}
+
+	return result, nil
+}
+
+func (s *StreamService) parseTorrents(ctx context.Context, query SearchQuery) ([]Stream, error) {
 	results, err := s.jackett.Search(ctx, jackett.SearchQuery{
 		Type:      jackett.QType(query.Type),
 		TMDBTitle: query.Title,
@@ -42,27 +71,17 @@ func (s *SearchService) Search(ctx context.Context, query SearchQuery) ([]Stream
 		return nil, nil
 	}
 
-	paresedTorrents := parseTorrents(ctx, results, query.Title)
-
-	return paresedTorrents, nil
-}
-
-func parseTorrents(ctx context.Context, results []jackett.Torrent,
-	tmdbTitle string) []Stream {
-	logger := logging.FromContext(ctx)
 	streams := make([]Stream, 0, len(results))
 	for _, result := range results {
-
 		parsed := filter.ParseTorrent(ctx, result.Title)
-
 		if parsed == nil {
 			continue
 		}
 
-		if parsed.Title != tmdbTitle {
-			logger.Warn("title mismatch",
+		if parsed.Title != query.Title {
+			s.logger.Warn("title mismatch",
 				"parsed", parsed.Title,
-				"tmdb", tmdbTitle,
+				"tmdb", query.Title,
 			)
 			continue
 		}
@@ -88,5 +107,6 @@ func parseTorrents(ctx context.Context, results []jackett.Torrent,
 
 		streams = append(streams, stream)
 	}
-	return streams
+
+	return streams, nil
 }

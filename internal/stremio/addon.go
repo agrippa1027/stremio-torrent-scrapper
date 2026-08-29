@@ -7,25 +7,38 @@ import (
 	"time"
 
 	"scrapper/internal/jackett"
+	"scrapper/internal/stream"
 	"scrapper/internal/tmdb"
 	"scrapper/internal/torbox"
 
 	"github.com/charmbracelet/log"
+	"github.com/redis/go-redis/v9"
 
 	"scrapper/internal/config"
 )
 
 type Addon struct {
-	tmdbClient *tmdb.Client
-	jackett    *jackett.Jackett
-	manifest   Manifest
-	logger     *log.Logger
-	torbox     *torbox.Client
+	manifest      Manifest
+	searchService *stream.StreamService
+	tmdbClient    *tmdb.Client
+	redisClient   *redis.Client
+	logger        *log.Logger
 }
 
 func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 	httpClient := newHTTPClient()
 	var err error
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password
+		DB:       0,  // use default DB
+		Protocol: 2,
+	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	tmdbClient, err := tmdb.New(cfg.TMDB, httpClient, logger)
 	if err != nil {
@@ -44,12 +57,23 @@ func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 
 	manifest := NewManifest(cfg.Manifest)
 
+	searchService, err := stream.New(
+		jackettClient,
+		torboxClient,
+		logger,
+		time.Second*10,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &Addon{
-		tmdbClient: tmdbClient,
-		jackett:    jackettClient,
-		manifest:   manifest,
-		logger:     logger,
-		torbox:     torboxClient,
+		manifest:      manifest,
+		redisClient:   redisClient,
+		tmdbClient:    tmdbClient,
+		searchService: searchService,
+		logger:        logger,
 	}, nil
 }
 

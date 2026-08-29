@@ -34,13 +34,20 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := stream.SearchStreams(r.Context(), searchQuery)
+	results, err := a.searchService.Search(r.Context(), searchQuery)
+	if err != nil {
+		a.logger.Error("search error", "error", err)
+		http.NotFound(w, r)
+		return
+	}
 
-	a.logger.Debug("stream results", "len:", len(results))
+	if len(results) == 0 {
+		a.logger.Warn("no results", "query", searchQuery)
+		http.NotFound(w, r)
+		return
+	}
 
-	streams := a.buildTorboxStreamLinks(newRequestContext(r), results, typeStr, season, episode)
-
-	writeJSON(w, StreamResponse{Streams: streams})
+	writeJSON(w, StreamResponse{Streams: results})
 }
 
 func (a *Addon) query(r *http.Request) (stream.SearchQuery, error) {

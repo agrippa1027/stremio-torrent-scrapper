@@ -1,48 +1,39 @@
 package stream
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"scrapper/internal/jackett"
 )
 
-func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []jackett.Torrent, typ string, season int, episode int) []Stream {
-	a.logger.Info("building torbox stream links",
-		"numResults", len(results),
-	)
-
+func (s *StreamService) buildTorboxStreamLinks(ctx context.Context, results []Stream, typ string, season int, episode int) []Stream {
 	const maxResults = 30
-	filtered := filterEpisodeResults(results, typ, season, episode)
-	sorted := sortResultsByQuality(filtered)
 	streams := make([]Stream, 0, maxResults)
 
-	for _, result := range sorted {
+	for _, result := range results {
 		if len(streams) >= maxResults {
 			break
 		}
 		infoHash := result.InfoHash
 		if infoHash == "" {
-			infoHash = infoHashFromMagnet(result.Magnet)
-		}
-		if infoHash == "" {
 			continue
 		}
 
-		cached, err := a.torbox.CheckCached(ctx.ctx, infoHash)
+		cached, err := s.torbox.CheckCached(ctx, infoHash)
 		if err != nil {
-			a.logger.Warn("torbox checkcached failed",
+			s.logger.Warn("torbox checkcached failed",
 				"hash", infoHash,
 				"error", err,
 			)
 			continue
 		}
 
-		a.logger.Debug("torbox checkcached result",
+		s.logger.Debug("torbox checkcached result",
 			"isCached", cached,
 		)
 
@@ -57,14 +48,14 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []jackett.To
 		}
 		if cached {
 			label = "Torbox (cached)"
-			directURL, err := a.torboxStreamURL(ctx.ctx, infoHash, result.Title, true, season, episode)
+			directURL, err := s.torboxStreamURL(ctx.ctx, infoHash, result.Title, true, season, episode)
 			if err != nil {
-				a.logger.Warn("torbox cached link failed",
+				s.logger.Warn("torbox cached link failed",
 					"hash", infoHash,
 					"error", err,
 				)
 			} else {
-				a.logger.Info("torbox checkcached result",
+				s.logger.Info("torbox checkcached result",
 					"cached", cached,
 					"directURL", directURL,
 				)
@@ -72,7 +63,7 @@ func (a *Addon) buildTorboxStreamLinks(ctx *requestContext, results []jackett.To
 			}
 		}
 
-		a.logger.Info("built torbox stream link",
+		s.logger.Info("built torbox stream link",
 			"title", result.Title,
 			"link", link,
 			"info_hash", infoHash,
@@ -102,46 +93,6 @@ var episodeRegexes = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)s(\d{1,2})e(\d{1,2})`),
 	regexp.MustCompile(`(?i)(\d{1,2})x(\d{1,2})`),
 	regexp.MustCompile(`(?i)season[ ._-]?(\d{1,2}).*episode[ ._-]?(\d{1,2})`),
-}
-
-func filterEpisodeResults(results []jackett.Torrent, typ string, season int, episode int) []jackett.Torrent {
-	if typ != "series" || season <= 0 || episode <= 0 {
-		return results
-	}
-
-	filtered := make([]jackett.Torrent, 0, len(results))
-	for _, result := range results {
-		matchSeason, matchEpisode, ok := extractEpisodeMarker(result.Title)
-		if !ok || matchSeason != season || matchEpisode != episode {
-			continue
-		}
-		filtered = append(filtered, result)
-	}
-
-	if len(filtered) == 0 {
-		return results
-	}
-	return filtered
-}
-
-func extractEpisodeMarker(title string) (int, int, bool) {
-	candidate := strings.ToLower(title)
-	for _, re := range episodeRegexes {
-		matches := re.FindStringSubmatch(candidate)
-		if len(matches) != 3 {
-			continue
-		}
-		season, err := strconv.Atoi(matches[1])
-		if err != nil {
-			continue
-		}
-		episode, err := strconv.Atoi(matches[2])
-		if err != nil {
-			continue
-		}
-		return season, episode, true
-	}
-	return 0, 0, false
 }
 
 func sortResultsByQuality(results []jackett.Torrent) []jackett.Torrent {
@@ -185,26 +136,6 @@ func qualityRank(title string) int {
 	}
 
 	return score
-}
-
-func infoHashFromMagnet(magnet string) string {
-	if magnet == "" {
-		return ""
-	}
-	const prefix = "magnet:?"
-	if strings.HasPrefix(magnet, prefix) {
-		magnet = magnet[len(prefix):]
-	}
-	values, err := url.ParseQuery(magnet)
-	if err != nil {
-		return ""
-	}
-	xt := strings.ToLower(values.Get("xt"))
-	const urnPrefix = "urn:btih:"
-	if !strings.HasPrefix(xt, urnPrefix) {
-		return ""
-	}
-	return strings.ToUpper(strings.TrimPrefix(xt, urnPrefix))
 }
 
 func trackerSources(trackers []string) []string {
