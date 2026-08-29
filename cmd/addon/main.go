@@ -24,8 +24,6 @@ func main() {
 		return
 	}
 
-	// TODO: check on this
-	// check what? dumb fucking comments
 	ctx := context.Background()
 	logger := logging.FromContext(ctx)
 	port := os.Getenv("PORT")

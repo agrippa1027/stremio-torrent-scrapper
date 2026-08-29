@@ -5,12 +5,12 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"scrapper/internal/torbox"
 	"strconv"
 	"strings"
 )
 
 func (a *Addon) torboxStreamHandler(w http.ResponseWriter, r *http.Request) {
-	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return

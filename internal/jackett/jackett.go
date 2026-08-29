@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"scrapper/internal/indexer"
-
 	"github.com/charmbracelet/log"
 	jackett "github.com/webtor-io/go-jackett"
 )
@@ -31,23 +29,19 @@ func New(client *http.Client, logger *log.Logger) (*Jackett, error) {
 	return &Jackett{client: j, logger: logger}, nil
 }
 
-func (j *Jackett) Name() string {
-	return "Jackett"
-}
-
 func (j *Jackett) Search(ctx context.Context,
-	query indexer.SearchQuery) ([]indexer.Torrent, error) {
+	query SearchQuery) ([]Torrent, error) {
 	var results []jackett.Result
 	var err error
 	var req *jackett.FetchRequest
 
 	switch query.Type {
-	case indexer.QTypeMovie:
+	case QTypeMovie:
 		req = jackett.
 			NewMovieSearch().
 			WithQuery(query.TMDBTitle).
 			Build()
-	case indexer.QTypeSeries:
+	case QTypeSeries:
 		req = jackett.
 			NewTVSearch().
 			WithQuery(query.TMDBTitle).
@@ -67,7 +61,7 @@ func (j *Jackett) Search(ctx context.Context,
 		return nil, err
 	}
 
-	out := make([]indexer.Torrent, 0, len(results))
+	out := make([]Torrent, 0, len(results))
 	for _, result := range results {
 		// WARNING:
 		// torrents like 1337x.to does not provide magnet uri in jackett
@@ -77,7 +71,7 @@ func (j *Jackett) Search(ctx context.Context,
 			magnet = result.Link
 		}
 
-		out = append(out, indexer.Torrent{
+		out = append(out, Torrent{
 			Title:    result.Title,
 			InfoHash: result.InfoHash,
 			Magnet:   magnet,

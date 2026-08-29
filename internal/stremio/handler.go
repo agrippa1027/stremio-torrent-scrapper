@@ -5,16 +5,11 @@ import (
 	"net/http"
 	"strings"
 
-	"scrapper/internal/indexer"
 	"scrapper/internal/stream"
 	"scrapper/internal/util"
 )
 
 func (a *Addon) manifestHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: @cors
-	// why is this here. do we realy need this?
-	util.SetCORSHeaders(w)
-
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -32,16 +27,7 @@ func (a *Addon) manifestHandler(w http.ResponseWriter, r *http.Request) {
 // Sample request:
 // GET stream/series/tt0386676:05:16.json
 func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO: @cors
-	util.SetCORSHeaders(w)
-
-	a.logger.Debug("stream handler invoked",
-		"method", r.Method,
-		"url", r.URL.Path,
-		"remote", r.RemoteAddr,
-	)
-
-	searchQuery, err := searchQueryFromRequest(r)
+	searchQuery, err := a.query(r)
 	if err != nil {
 		a.logger.Error("search query error", "error", err)
 		http.NotFound(w, r)
@@ -57,21 +43,37 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, StreamResponse{Streams: streams})
 }
 
-func searchQueryFromRequest(r *http.Request) (indexer.SearchQuery, error) {
+func (a *Addon) query(r *http.Request) (stream.SearchQuery, error) {
+	query, err := parseRequest(r)
+	if err != nil {
+		return stream.SearchQuery{}, err
+	}
+
+	title, err := a.tmdbClient.Title(r.Context(), query.ID)
+	if err != nil {
+		return stream.SearchQuery{}, err
+	}
+	query.Title = title
+
+	return query, nil
+}
+
+func parseRequest(r *http.Request) (stream.SearchQuery, error) {
 	typeStr := r.PathValue("type")
 	idRaw := r.PathValue("id")
 	idStr, ok := strings.CutSuffix(idRaw, ".json")
 
 	if typeStr == "" || !ok || idStr == "" {
-		return indexer.SearchQuery{}, fmt.Errorf("invalid type: %s, id: %s", typeStr, idStr)
+		return stream.SearchQuery{}, fmt.Errorf("invalid type: %s, id: %s", typeStr, idStr)
 	}
 
 	baseID, season, episode := util.SplitID(idStr)
 
-	return indexer.SearchQuery{
+	return stream.SearchQuery{
 		Type:    typeStr,
 		ID:      baseID,
 		Season:  season,
 		Episode: episode,
 	}, nil
+
 }

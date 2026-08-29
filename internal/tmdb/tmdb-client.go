@@ -55,25 +55,25 @@ func New(tmdbCfg config.TMDBConfig, httpClient *http.Client, logger *log.Logger)
 	}, nil
 }
 
-func (c *Client) Title(ctx context.Context, id string) ([]TVResults, error) {
+func (c *Client) Title(ctx context.Context, id string) (string, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return nil, errors.New("imdb id is required")
+		return "", errors.New("imdb id is required")
 	}
 
 	req, err := c.request(ctx, http.MethodGet, id)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("tmdb status: %s", resp.Status)
+		return "", fmt.Errorf("tmdb status: %s", resp.Status)
 	}
 
 	var payload struct {
@@ -81,11 +81,10 @@ func (c *Client) Title(ctx context.Context, id string) ([]TVResults, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, err
+		return "", err
 	}
-	c.logger.Debug("TVTitleByIMDB", "payload", payload)
 
-	return payload.TVResults, nil
+	return payload.TVResults[0].Name, nil
 }
 
 func (c *Client) request(ctx context.Context, method, id string) (*http.Request, error) {

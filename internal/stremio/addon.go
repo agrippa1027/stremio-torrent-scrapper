@@ -4,8 +4,8 @@ package stremio
 
 import (
 	"net/http"
+	"time"
 
-	"scrapper/internal/indexer"
 	"scrapper/internal/jackett"
 	"scrapper/internal/tmdb"
 	"scrapper/internal/torbox"
@@ -17,27 +17,27 @@ import (
 
 type Addon struct {
 	tmdbClient *tmdb.Client
-	indexer    indexer.Indexer
+	jackett    *jackett.Jackett
 	manifest   Manifest
 	logger     *log.Logger
 	torbox     *torbox.Client
 }
 
 func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
-	client := indexer.NewHTTPClient()
+	httpClient := newHTTPClient()
 	var err error
 
-	tmdbClient, err := tmdb.New(cfg.TMDB, client, logger)
+	tmdbClient, err := tmdb.New(cfg.TMDB, httpClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	jackett, err := jackett.New(client, logger)
+	jackettClient, err := jackett.New(httpClient, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	torboxClient, err := torbox.NewClient(cfg.Torbox, client)
+	torboxClient, err := torbox.New(cfg.Torbox, httpClient, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -46,11 +46,20 @@ func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 
 	return &Addon{
 		tmdbClient: tmdbClient,
-		indexer:    jackett,
+		jackett:    jackettClient,
 		manifest:   manifest,
 		logger:     logger,
 		torbox:     torboxClient,
 	}, nil
+}
+
+func newHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 120 * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		},
+	}
 }
 
 func (a *Addon) Register(mux *http.ServeMux) {

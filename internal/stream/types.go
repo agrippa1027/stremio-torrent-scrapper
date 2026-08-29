@@ -3,6 +3,7 @@ package stream
 type SearchQuery struct {
 	Type    string // Movie or TVShow
 	ID      string
+	Title   string
 	Season  int
 	Episode int
 }
