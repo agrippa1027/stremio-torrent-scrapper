@@ -7,68 +7,50 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/log"
-
-	"scrapper/internal/config"
 )
 
-var ErrMissingAPIKey = errors.New("missing TMDB API key")
-
-type Client struct {
-	baseURL *url.URL
-	apiKey  string
-	http    *http.Client
-	logger  *log.Logger
-}
-
-type TVResults struct {
-	Name string `json:"name" redis:"name"`
-}
-
-func New(tmdbCfg config.TMDBConfig, httpClient *http.Client, logger *log.Logger) (*Client, error) {
-	apiKey := os.Getenv("TMDB_API_KEY")
-	if apiKey == "" {
+func New(opts Options, httpClient *http.Client) (*Client, error) {
+	if opts.APIKey == "" {
 		return nil, ErrMissingAPIKey
 	}
 
-	parsed, err := url.Parse(tmdbCfg.BaseURL)
+	parsed, err := url.Parse(opts.BaseURL)
 	if err != nil {
 		return nil, err
 	}
 
 	if httpClient == nil {
-		httpClient = &http.Client{
-			Timeout: time.Duration(tmdbCfg.Timeout) * time.Second,
-		}
+		return nil, ErrHTTPClient
 	}
 
 	return &Client{
-		baseURL: parsed,
-		apiKey:  apiKey,
+		host:    parsed,
+		key:     opts.APIKey,
 		http:    httpClient,
-		logger:  logger,
+		timeout: time.Duration(opts.TimeoutSeconds) * time.Second,
 	}, nil
 }
 
-func (c *Client) Title(ctx context.Context, id string) (string, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
+func (c *Client) TitleByIMDB(ctx context.Context, imdbID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	imdbID = strings.TrimSpace(imdbID)
+	if imdbID == "" {
 		return "", errors.New("imdb id is required")
 	}
 
-	req, err := c.request(ctx, http.MethodGet, id)
+	findRequest, err := c.newFindRequest(ctx, imdbID)
 	if err != nil {
-		return "", err
+		return "", errors.New("failed to create find request: " + err.Error())
 	}
 
-	resp, err := c.http.Do(req)
+	resp, err := c.http.Do(findRequest)
 	if err != nil {
-		return "", err
+		return "", errors.New("failed to send find request: " + err.Error())
 	}
 	defer resp.Body.Close()
 
@@ -76,33 +58,49 @@ func (c *Client) Title(ctx context.Context, id string) (string, error) {
 		return "", fmt.Errorf("tmdb status: %s", resp.Status)
 	}
 
-	var payload struct {
-		TVResults []TVResults `json:"tv_results"`
+	var result findResponse
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode TMDB find response: %w", err)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return "", err
-	}
+	return result.title(), nil
 
-	return payload.TVResults[0].Name, nil
 }
 
-func (c *Client) request(ctx context.Context, method, id string) (*http.Request, error) {
-	u := *c.baseURL
+func (c *Client) newFindRequest(
+	ctx context.Context,
+	imdbID string,
+) (*http.Request, error) {
+	endpoint := *c.host
+	endpoint.Path = path.Join(endpoint.Path, "find", imdbID)
 
-	u.Path = path.Join(u.Path, "find", id)
+	query := endpoint.Query()
+	query.Set("external_source", "imdb_id")
+	endpoint.RawQuery = query.Encode()
 
-	q := u.Query()
-	q.Set("external_source", "imdb_id")
-
-	u.RawQuery = q.Encode()
-
-	// TODO: This shoudld be request with timeout
-	req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		endpoint.String(),
+		nil,
+	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create TMDB find request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+c.key)
+	req.Header.Set("Accept", "application/json")
+
 	return req, nil
+}
+
+func (r findResponse) title() string {
+	if len(r.MovieResults) > 0 {
+		return r.MovieResults[0].Title
+	}
+	if len(r.TVResults) > 0 {
+		return r.TVResults[0].Title
+	}
+	return ""
 }

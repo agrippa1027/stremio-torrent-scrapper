@@ -17,13 +17,17 @@ type TorboxConfig struct {
 	Timeout    int    `json:"timeout"`
 }
 
-type TMDBConfig struct {
-	BaseURL string `yaml:"baseurl"`
-	Timeout int    `yaml:"timeout"`
+type TMDBOptions struct {
+	BaseURL        string `yaml:"baseurl"`
+	APIKey         string `yaml:"-"`
+	TimeoutSeconds int    `yaml:"timeout"`
 }
 
 type Config struct {
 	Manifest ManifestConfig `yaml:"manifest"`
 	Torbox   TorboxConfig   `yaml:"torbox"`
-	TMDB     TMDBConfig     `yaml:"tmdb"`
+	TMDB     TMDBOptions    `yaml:"tmdb"`
 }
+
+// I don't see the other configs
+// such jackett

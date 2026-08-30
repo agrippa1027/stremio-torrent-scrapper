@@ -56,7 +56,7 @@ func (a *Addon) query(r *http.Request) (stream.SearchQuery, error) {
 		return stream.SearchQuery{}, err
 	}
 
-	title, err := a.tmdbClient.Title(r.Context(), query.ID)
+	title, err := a.tmdbClient.TitleByIMDB(r.Context(), query.ID)
 	if err != nil {
 		return stream.SearchQuery{}, err
 	}

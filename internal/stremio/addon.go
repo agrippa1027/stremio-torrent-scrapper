@@ -40,7 +40,13 @@ func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
 		return nil, err
 	}
 
-	tmdbClient, err := tmdb.New(cfg.TMDB, httpClient, logger)
+	tmdbClient, err := tmdb.New(tmdb.Options{
+		BaseURL:        cfg.TMDB.BaseURL,
+		APIKey:         cfg.TMDB.APIKey,
+		TimeoutSeconds: cfg.TMDB.TimeoutSeconds,
+	},
+		httpClient,
+	)
 	if err != nil {
 		return nil, err
 	}

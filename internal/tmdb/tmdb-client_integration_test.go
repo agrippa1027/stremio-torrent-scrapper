@@ -2,13 +2,12 @@ package tmdb
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/joho/godotenv"
-
-	"scrapper/internal/config"
 )
 
 // newLiveClient loads the repo-root .env, skips the test when no TMDB_API_KEY is
@@ -23,12 +22,21 @@ func newLiveClient(t *testing.T) *Client {
 		t.Skip("TMDB_API_KEY not set; skipping live TMDB integration test")
 	}
 
-	cfg := config.TMDBConfig{
-		BaseURL: "https://api.themoviedb.org/3",
-		Timeout: 30,
+	opt := Options{
+		BaseURL:        "https://api.themoviedb.org/3",
+		APIKey:         os.Getenv("TMDB_API_KEY"),
+		TimeoutSeconds: 30,
 	}
 
-	client, err := New(cfg, nil, testLogger())
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSHandshakeTimeout = 20 * time.Second
+
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   30 * time.Second,
+	}
+
+	client, err := New(opt, httpClient)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -43,15 +51,12 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		results, err := client.Title(ctx, "tt0903747") // Breaking Bad
+		results, err := client.TitleByIMDB(ctx, "tt0903747") // Breaking Bad
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(results) == 0 {
-			t.Fatal("expected at least one tv result, got none")
-		}
-		if results[0].Name != "Breaking Bad" {
-			t.Fatalf("expected first result %q, got %q", "Breaking Bad", results[0].Name)
+		if results != "Breaking Bad" {
+			t.Fatalf("expected first result %q, got %q", "Breaking Bad", results)
 		}
 	})
 
@@ -59,15 +64,12 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		results, err := client.Title(ctx, "  tt0944947  ") // Game of Thrones
+		results, err := client.TitleByIMDB(ctx, "  tt0944947  ") // Game of Thrones
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(results) == 0 {
-			t.Fatal("expected at least one tv result, got none")
-		}
-		if results[0].Name != "Game of Thrones" {
-			t.Fatalf("expected first result %q, got %q", "Game of Thrones", results[0].Name)
+		if results != "Game of Thrones" {
+			t.Fatalf("expected first result %q, got %q", "Game of Thrones", results)
 		}
 	})
 
@@ -75,12 +77,13 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		results, err := client.Title(ctx, "tt0111161") // The Shawshank Redemption (film)
+		results, err := client.TitleByIMDB(ctx, "tt0111161") // The Shawshank Redemption (film)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(results) != 0 {
-			t.Fatalf("expected no tv results for a movie id, got %v", results)
+
+		if results != "The Shawshank Redemption" {
+			t.Fatalf("expected first result %q, got %q", "The Shawshank Redemption", results)
 		}
 	})
 
@@ -88,7 +91,7 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		results, err := client.Title(ctx, "tt9999999999")
+		results, err := client.TitleByIMDB(ctx, "tt9999999999")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -101,7 +104,7 @@ func TestTVTitleByIMDB_Integration(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel before the request is issued
 
-		results, err := client.Title(ctx, "tt0903747")
+		results, err := client.TitleByIMDB(ctx, "tt0903747")
 		if err == nil {
 			t.Fatalf("expected an error for a cancelled context, got results %v", results)
 		}

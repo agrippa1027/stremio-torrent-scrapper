@@ -1,0 +1,7 @@
+name: Local
+color: "#346AB2"
+variables:
+  - name: IMDbID
+    value: tt0133093
+  - secret: true
+    name: TMDBID
