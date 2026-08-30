@@ -21,7 +21,7 @@ import (
 )
 
 type Client struct {
-	baseURL   *url.URL
+	BaseURL   *url.URL
 	apiKey    string
 	http      *http.Client
 	cacheOnly bool
@@ -94,7 +94,7 @@ func New(torBox config.TorboxConfig, httpClient *http.Client, logger *log.Logger
 	}
 
 	return &Client{
-		baseURL:   parsed,
+		BaseURL:   parsed,
 		apiKey:    apiKey,
 		http:      httpClient,
 		cacheOnly: torBox.CachedOnly,
@@ -102,7 +102,11 @@ func New(torBox config.TorboxConfig, httpClient *http.Client, logger *log.Logger
 	}, nil
 }
 
-func (c *Client) CreateTorrent(ctx context.Context, magnet string, addOnlyIfCached bool) (TorrentCreateResult, error) {
+func (c *Client) CreateTorrent(
+	ctx context.Context,
+	magnet string,
+	addOnlyIfCached bool,
+) (TorrentCreateResult, error) {
 	var result TorrentCreateResult
 
 	body := &bytes.Buffer{}
@@ -113,7 +117,14 @@ func (c *Client) CreateTorrent(ctx context.Context, magnet string, addOnlyIfCach
 	}
 	_ = writer.Close()
 
-	if err := c.doJSON(ctx, http.MethodPost, "/torrents/createtorrent", nil, body, writer.FormDataContentType(), &result); err != nil {
+	if err := c.doJSON(ctx,
+		http.MethodPost,
+		"/torrents/createtorrent",
+		nil,
+		body,
+		writer.FormDataContentType(),
+		&result,
+	); err != nil {
 		return TorrentCreateResult{}, err
 	}
 
@@ -244,7 +255,7 @@ func (c *Client) doJSON(
 	contentType string,
 	out any,
 ) error {
-	u := *c.baseURL
+	u := *c.BaseURL
 	endpoint = strings.TrimPrefix(endpoint, "/")
 	u.Path = path.Join(u.Path, endpoint)
 	if len(query) > 0 {

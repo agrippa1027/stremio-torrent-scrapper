@@ -38,7 +38,7 @@ func New(
 	}, nil
 }
 
-func (s *StreamService) Search(ctx context.Context, query SearchQuery) ([]Stream, error) {
+func (s *StreamService) Search(ctx context.Context, query SearchQuery) ([]StremioStream, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -52,7 +52,9 @@ func (s *StreamService) Search(ctx context.Context, query SearchQuery) ([]Stream
 		return nil, nil
 	}
 
-	return result, nil
+	streams := s.buildTorboxStreamLinks(ctx, result, query.Type, query.Season, query.Episode)
+
+	return streams, nil
 }
 
 func (s *StreamService) parseTorrents(ctx context.Context, query SearchQuery) ([]Stream, error) {

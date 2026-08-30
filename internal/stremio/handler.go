@@ -47,7 +47,7 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, StreamResponse{Streams: results})
+	util.WriteJSON(w, stream.StreamResponse{Streams: results})
 }
 
 func (a *Addon) query(r *http.Request) (stream.SearchQuery, error) {
