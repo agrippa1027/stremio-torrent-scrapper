@@ -4,32 +4,29 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 
-	"github.com/charmbracelet/log"
 	jackett "github.com/webtor-io/go-jackett"
 )
 
-type Jackett struct {
+type Client struct {
 	client *jackett.Client
-	logger *log.Logger
 }
 
-func New(client *http.Client, logger *log.Logger) (*Jackett, error) {
+func New(opt Options, httpClient *http.Client) (*Client, error) {
 	j, err := jackett.New(jackett.Settings{
-		ApiURL: os.Getenv("JACKETT_API_URL"),
-		ApiKey: os.Getenv("JACKETT_API_KEY"),
-		Client: client,
+		ApiURL: opt.BaseURL,
+		ApiKey: opt.APIKey,
+		Client: httpClient,
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Jackett{client: j, logger: logger}, nil
+	return &Client{client: j}, nil
 }
 
-func (j *Jackett) Search(ctx context.Context,
+func (j *Client) Search(ctx context.Context,
 	query SearchQuery) ([]Torrent, error) {
 	var results []jackett.Result
 	var err error

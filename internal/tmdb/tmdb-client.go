@@ -3,7 +3,6 @@ package tmdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,16 +13,16 @@ import (
 
 func New(opts Options, httpClient *http.Client) (*Client, error) {
 	if opts.APIKey == "" {
-		return nil, ErrMissingAPIKey
+		return nil, fmt.Errorf("missing TMDB API key")
 	}
 
 	parsed, err := url.Parse(opts.BaseURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid TMDB base URL: %w", err)
 	}
 
 	if httpClient == nil {
-		return nil, ErrHTTPClient
+		return nil, fmt.Errorf("http client is required")
 	}
 
 	return &Client{
@@ -40,17 +39,17 @@ func (c *Client) TitleByIMDB(ctx context.Context, imdbID string) (string, error)
 
 	imdbID = strings.TrimSpace(imdbID)
 	if imdbID == "" {
-		return "", errors.New("imdb id is required")
+		return "", fmt.Errorf("imdb id is required")
 	}
 
 	findRequest, err := c.newFindRequest(ctx, imdbID)
 	if err != nil {
-		return "", errors.New("failed to create find request: " + err.Error())
+		return "", fmt.Errorf("failed to create find request: %w", err)
 	}
 
 	resp, err := c.http.Do(findRequest)
 	if err != nil {
-		return "", errors.New("failed to send find request: " + err.Error())
+		return "", fmt.Errorf("failed to send find request: %w", err)
 	}
 	defer resp.Body.Close()
 

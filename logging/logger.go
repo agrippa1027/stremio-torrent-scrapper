@@ -12,7 +12,7 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-func logger(level string) *log.Logger {
+func Logger(level string) *log.Logger {
 	logLevel, err := log.ParseLevel(level)
 
 	if err != nil {

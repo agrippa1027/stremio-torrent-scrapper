@@ -3,93 +3,36 @@
 package stremio
 
 import (
+	"fmt"
 	"net/http"
-	"time"
 
-	"scrapper/internal/jackett"
 	"scrapper/internal/stream"
-	"scrapper/internal/tmdb"
-	"scrapper/internal/torbox"
 
 	"github.com/charmbracelet/log"
-	"github.com/redis/go-redis/v9"
-
-	"scrapper/internal/config"
 )
 
 type Addon struct {
 	manifest      Manifest
 	searchService *stream.StreamService
-	tmdbClient    *tmdb.Client
-	redisClient   *redis.Client
 	logger        *log.Logger
 }
 
-func New(cfg config.Config, logger *log.Logger) (*Addon, error) {
-	httpClient := newHTTPClient()
+func New(
+	manifest Manifest,
+	searchService *stream.StreamService,
+	logger *log.Logger,
+) (*Addon, error) {
 	var err error
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password
-		DB:       0,  // use default DB
-		Protocol: 2,
-	})
-
 	if err != nil {
-		return nil, err
-	}
-
-	tmdbClient, err := tmdb.New(tmdb.Options{
-		BaseURL:        cfg.TMDB.BaseURL,
-		APIKey:         cfg.TMDB.APIKey,
-		TimeoutSeconds: cfg.TMDB.TimeoutSeconds,
-	},
-		httpClient,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	jackettClient, err := jackett.New(httpClient, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	torboxClient, err := torbox.New(cfg.Torbox, httpClient, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	manifest := NewManifest(cfg.Manifest)
-
-	searchService, err := stream.New(
-		jackettClient,
-		torboxClient,
-		logger,
-		time.Second*10,
-	)
-
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create search service: %w", err)
 	}
 
 	return &Addon{
 		manifest:      manifest,
-		redisClient:   redisClient,
-		tmdbClient:    tmdbClient,
 		searchService: searchService,
 		logger:        logger,
 	}, nil
-}
-
-func newHTTPClient() *http.Client {
-	return &http.Client{
-		Timeout: 120 * time.Second,
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-		},
-	}
 }
 
 func (a *Addon) Register(mux *http.ServeMux) {

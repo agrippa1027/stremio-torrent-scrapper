@@ -27,3 +27,8 @@ type SearchQuery struct {
 	Season    int
 	Episode   int
 }
+
+type Options struct {
+	BaseURL string
+	APIKey  string
+}

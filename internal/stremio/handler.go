@@ -29,7 +29,7 @@ func (a *Addon) manifestHandler(w http.ResponseWriter, r *http.Request) {
 func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 	searchQuery, err := a.query(r)
 	if err != nil {
-		a.logger.Error("search query error", "error", err)
+		a.logger.Error("error parsing request", "error", err)
 		http.NotFound(w, r)
 		return
 	}

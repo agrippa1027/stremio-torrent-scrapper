@@ -10,9 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
-	"scrapper/internal/config"
 	"strconv"
 	"strings"
 	"time"
@@ -71,13 +69,20 @@ type Torrent struct {
 	Files            []TorrentFile `json:"files"`
 }
 
-func New(torBox config.TorboxConfig, httpClient *http.Client, logger *log.Logger) (*Client, error) {
-	apiKey := os.Getenv("TORBOX_API_KEY")
+type Options struct {
+	APIKey    string
+	BaseURL   string
+	CacheOnly bool
+	Timeout   int
+}
+
+func New(opts *Options, httpClient *http.Client, logger *log.Logger) (*Client, error) {
+	apiKey := opts.APIKey
 	if apiKey == "" {
 		return nil, errors.New("missing Torbox API key")
 	}
 
-	baseUrl := torBox.BaseURL
+	baseUrl := opts.BaseURL
 	if baseUrl == "" {
 		return nil, errors.New("missing Torbox base URL")
 	}
@@ -89,7 +94,7 @@ func New(torBox config.TorboxConfig, httpClient *http.Client, logger *log.Logger
 
 	if httpClient == nil {
 		httpClient = &http.Client{
-			Timeout: time.Duration(torBox.Timeout) * time.Second,
+			Timeout: time.Duration(opts.Timeout) * time.Second,
 		}
 	}
 
@@ -97,7 +102,7 @@ func New(torBox config.TorboxConfig, httpClient *http.Client, logger *log.Logger
 		BaseURL:   parsed,
 		apiKey:    apiKey,
 		http:      httpClient,
-		cacheOnly: torBox.CachedOnly,
+		cacheOnly: opts.CacheOnly,
 		logger:    logger,
 	}, nil
 }

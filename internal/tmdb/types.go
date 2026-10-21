@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"errors"
 	"net/http"
 	"net/url"
 	"time"
@@ -13,12 +12,6 @@ type Client struct {
 	http    *http.Client
 	timeout time.Duration
 }
-
-var (
-	ErrMissingAPIKey = errors.New("missing TMDB API key")
-	ErrHTTPClient    = errors.New("http client is required")
-	ErrTitleNotFound = errors.New("title not found")
-)
 
 type Options struct {
 	BaseURL        string

@@ -16,7 +16,7 @@ import (
 type StreamService struct {
 	redis      *redis.Client
 	tmdbClient *tmdb.Client
-	jackett    *jackett.Jackett
+	jackett    *jackett.Client
 	torbox     *torbox.Client
 	logger     *log.Logger
 
@@ -25,16 +25,15 @@ type StreamService struct {
 }
 
 func New(
-	jackett *jackett.Jackett,
+	tmdbClient *tmdb.Client,
+	jackett *jackett.Client,
 	torbox *torbox.Client,
 	logger *log.Logger,
-	timeout time.Duration,
 ) (*StreamService, error) {
 	return &StreamService{
 		jackett: jackett,
 		torbox:  torbox,
 		logger:  logger,
-		timeout: timeout,
 	}, nil
 }
 
