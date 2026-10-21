@@ -26,8 +26,7 @@ func New(opt Options, httpClient *http.Client) (*Client, error) {
 	return &Client{client: j}, nil
 }
 
-func (j *Client) Search(ctx context.Context,
-	query SearchQuery) ([]Torrent, error) {
+func (j *Client) Search(ctx context.Context, query SearchQuery) ([]Torrent, error) {
 	var results []jackett.Result
 	var err error
 	var req *jackett.FetchRequest

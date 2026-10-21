@@ -29,11 +29,20 @@ type JackettConfig struct {
 	APIKey  string `yaml:"-"`
 }
 
+type RedisConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	DB       int    `yaml:"db"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
 type Config struct {
 	Manifest ManifestConfig `yaml:"manifest"`
 	Torbox   TorboxConfig   `yaml:"torbox"`
 	TMDB     TMDBOptions    `yaml:"tmdb"`
 	Jackett  JackettConfig  `yaml:"jackett"`
+	Redis    RedisConfig    `yaml:"redis"`
 }
 
 // I don't see the other configs

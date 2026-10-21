@@ -3,10 +3,12 @@ package main
 import (
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 
 	"scrapper/config"
 	"scrapper/internal/jackett"
@@ -20,7 +22,7 @@ import (
 func main() {
 	config, err := configLoad()
 	if err != nil {
-		log.Fatal("load config: %v", err)
+		log.Fatal("load config", "error", err)
 		return
 	}
 
@@ -44,7 +46,12 @@ func main() {
 		Logo:        config.Manifest.Logo,
 	})
 
-	logger.Info("manifest: %v", manifest)
+	logger.Info("[MAIN] Manifest loaded", "manifest", manifest)
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Redis.Host + ":" + strconv.Itoa(config.Redis.Port),
+		DB:   config.Redis.DB,
+	})
 
 	tmdbClient, err := tmdb.New(
 		tmdb.Options{
@@ -53,9 +60,11 @@ func main() {
 			TimeoutSeconds: config.TMDB.TimeoutSeconds,
 		},
 		httpClient,
+		redisClient,
+		logger,
 	)
 	if err != nil {
-		logger.Fatal("create tmdb client: %v", err)
+		logger.Fatal("create tmdb client", "error", err)
 		return
 	}
 
@@ -67,7 +76,7 @@ func main() {
 		httpClient,
 	)
 	if err != nil {
-		logger.Fatal("create jackett client: %v", err)
+		logger.Fatal("create jackett client", "error", err)
 		return
 	}
 
@@ -82,7 +91,7 @@ func main() {
 		logger,
 	)
 	if err != nil {
-		logger.Fatal("create torbox client: %v", err)
+		logger.Fatal("create torbox client", "error", err)
 		return
 	}
 
@@ -94,7 +103,7 @@ func main() {
 	)
 
 	if err != nil {
-		logger.Fatal("init addon: %v", err)
+		logger.Fatal("init stream service", "error", err)
 		return
 	}
 
@@ -105,7 +114,7 @@ func main() {
 	)
 
 	if err != nil {
-		logger.Fatal("init addon: %v", err)
+		logger.Fatal("init addon", "error", err)
 		return
 	}
 
@@ -127,7 +136,7 @@ func main() {
 func loadEnv() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Warn("load env from file: %v", err)
+		log.Warn("load env from file", "error", err)
 	}
 }
 

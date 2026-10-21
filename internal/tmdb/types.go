@@ -4,13 +4,18 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"charm.land/log/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 type Client struct {
 	host    *url.URL
 	key     string
 	http    *http.Client
+	redis   *redis.Client
 	timeout time.Duration
+	logger  *log.Logger
 }
 
 type Options struct {

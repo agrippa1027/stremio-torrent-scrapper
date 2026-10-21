@@ -9,7 +9,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 )
 
 func Logger(level string) *log.Logger {
@@ -32,5 +32,5 @@ func FromContext(ctx context.Context) *log.Logger {
 	if logger, ok := ctx.Value("loggerKey").(*log.Logger); ok {
 		return logger
 	}
-	return logger(os.Getenv("LOG_LEVEL"))
+	return Logger(os.Getenv("LOG_LEVEL"))
 }

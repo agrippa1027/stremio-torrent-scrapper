@@ -2,26 +2,21 @@ package stream
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	"scrapper/internal/filter"
 	"scrapper/internal/jackett"
 	"scrapper/internal/tmdb"
 	"scrapper/internal/torbox"
 
-	"github.com/charmbracelet/log"
-	"github.com/redis/go-redis/v9"
+	"charm.land/log/v2"
 )
 
 type StreamService struct {
-	redis      *redis.Client
 	tmdbClient *tmdb.Client
 	jackett    *jackett.Client
 	torbox     *torbox.Client
 	logger     *log.Logger
-
-	// configs
-	timeout time.Duration
 }
 
 func New(
@@ -31,45 +26,38 @@ func New(
 	logger *log.Logger,
 ) (*StreamService, error) {
 	return &StreamService{
-		jackett: jackett,
-		torbox:  torbox,
-		logger:  logger,
+		tmdbClient: tmdbClient,
+		jackett:    jackett,
+		torbox:     torbox,
+		logger:     logger,
 	}, nil
 }
 
-func (s *StreamService) Search(ctx context.Context, query SearchQuery) ([]StremioStream, error) {
-	ctx, cancel := context.WithTimeout(ctx, s.timeout)
-	defer cancel()
-
-	result, err := s.parseTorrents(ctx, query)
-
+func (s *StreamService) Search(
+	ctx context.Context,
+	typeStr,
+	idStr string,
+	season,
+	episode int,
+) ([]StremioStream, error) {
+	title, err := s.tmdbClient.TitleByIMDB(ctx, idStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[Stream][Search] failed to get title by imdb: %w", err)
 	}
 
-	if len(result) == 0 {
-		return nil, nil
-	}
-
-	streams := s.buildTorboxStreamLinks(ctx, result, query.Type, query.Season, query.Episode)
-
-	return streams, nil
-}
-
-func (s *StreamService) parseTorrents(ctx context.Context, query SearchQuery) ([]Stream, error) {
 	results, err := s.jackett.Search(ctx, jackett.SearchQuery{
-		Type:      jackett.QType(query.Type),
-		TMDBTitle: query.Title,
-		ID:        query.ID,
-		Season:    query.Season,
-		Episode:   query.Episode,
+		Type:      jackett.QType(typeStr),
+		TMDBTitle: title,
+		ID:        idStr,
+		Season:    season,
+		Episode:   episode,
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[Stream][Search] failed to search: %w", err)
 	}
 	if len(results) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("[Stream][Search] no results found")
 	}
 
 	streams := make([]Stream, 0, len(results))
@@ -79,10 +67,10 @@ func (s *StreamService) parseTorrents(ctx context.Context, query SearchQuery) ([
 			continue
 		}
 
-		if parsed.Title != query.Title {
-			s.logger.Warn("title mismatch",
+		if parsed.Title != title {
+			s.logger.Warn("[Stream][Search] title mismatch",
 				"parsed", parsed.Title,
-				"tmdb", query.Title,
+				"tmdb", title,
 			)
 			continue
 		}
@@ -104,10 +92,16 @@ func (s *StreamService) parseTorrents(ctx context.Context, query SearchQuery) ([
 			Size:     result.Size,
 			Tracker:  result.Tracker,
 			Files:    uint(result.Files),
+
+			TorrentTitle: result.Title,
 		}
 
 		streams = append(streams, stream)
 	}
 
-	return streams, nil
+	// TODO:
+	// Cache
+	stremioStreams := s.buildTorboxStreamLinks(ctx, streams, typeStr, season, episode)
+
+	return stremioStreams, nil
 }

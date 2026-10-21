@@ -1,7 +1,6 @@
 package stremio
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -27,14 +26,23 @@ func (a *Addon) manifestHandler(w http.ResponseWriter, r *http.Request) {
 // Sample request:
 // GET stream/series/tt0386676:05:16.json
 func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
-	searchQuery, err := a.query(r)
-	if err != nil {
-		a.logger.Error("error parsing request", "error", err)
+	typeStr := r.PathValue("type")
+	idRaw := r.PathValue("id")
+
+	idStr, ok := strings.CutSuffix(idRaw, ".json")
+	if !ok {
 		http.NotFound(w, r)
+		a.logger.Warn("invalid id", "id", idRaw)
 		return
 	}
-
-	results, err := a.searchService.Search(r.Context(), searchQuery)
+	imdbID, season, episode := util.SplitID(idStr)
+	results, err := a.searchService.Search(
+		r.Context(),
+		typeStr,
+		imdbID,
+		season,
+		episode,
+	)
 	if err != nil {
 		a.logger.Error("search error", "error", err)
 		http.NotFound(w, r)
@@ -42,45 +50,10 @@ func (a *Addon) streamHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(results) == 0 {
-		a.logger.Warn("no results", "query", searchQuery)
+		a.logger.Warn("no results", "type", typeStr, "id", idStr)
 		http.NotFound(w, r)
 		return
 	}
 
 	util.WriteJSON(w, stream.StreamResponse{Streams: results})
-}
-
-func (a *Addon) query(r *http.Request) (stream.SearchQuery, error) {
-	query, err := parseRequest(r)
-	if err != nil {
-		return stream.SearchQuery{}, err
-	}
-
-	title, err := a.tmdbClient.TitleByIMDB(r.Context(), query.ID)
-	if err != nil {
-		return stream.SearchQuery{}, err
-	}
-	query.Title = title
-
-	return query, nil
-}
-
-func parseRequest(r *http.Request) (stream.SearchQuery, error) {
-	typeStr := r.PathValue("type")
-	idRaw := r.PathValue("id")
-	idStr, ok := strings.CutSuffix(idRaw, ".json")
-
-	if typeStr == "" || !ok || idStr == "" {
-		return stream.SearchQuery{}, fmt.Errorf("invalid type: %s, id: %s", typeStr, idStr)
-	}
-
-	baseID, season, episode := util.SplitID(idStr)
-
-	return stream.SearchQuery{
-		Type:    typeStr,
-		ID:      baseID,
-		Season:  season,
-		Episode: episode,
-	}, nil
-
 }

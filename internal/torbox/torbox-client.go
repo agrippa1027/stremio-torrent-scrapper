@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 )
 
 type Client struct {
@@ -229,11 +229,11 @@ func (c *Client) CheckCached(ctx context.Context, hash string) (bool, error) {
 		"",
 		&raw,
 	); err != nil {
-		return false, err
+		return false, fmt.Errorf("[TorBox][CheckCached] Failed to check cached: %w", err)
 	}
 
 	if len(raw) == 0 || string(raw) == "null" {
-		return false, nil
+		return false, fmt.Errorf("[TorBox][CheckCached] No data received from TorBox for %s", hash)
 	}
 
 	var list []struct {

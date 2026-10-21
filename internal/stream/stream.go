@@ -1,5 +1,9 @@
 package stream
 
+// TODO:
+//
+// do we really need this spereate file for one method
+
 import (
 	"context"
 	"fmt"
@@ -18,19 +22,22 @@ func (s *StreamService) buildTorboxStreamLinks(
 	for _, result := range results {
 		infoHash := result.InfoHash
 		if infoHash == "" {
+			s.logger.Warn("[Stream][buildTorboxStreamLinks] infoHash is empty, skipping",
+				"result", result,
+			)
 			continue
 		}
 
 		cached, err := s.torbox.CheckCached(ctx, infoHash)
 		if err != nil {
-			s.logger.Warn("torbox checkcached failed",
+			s.logger.Warn("[Stream][buildTorboxStreamLinks] torbox checkcached failed",
 				"hash", infoHash,
 				"error", err,
 			)
 			continue
 		}
 
-		label := "Torbox (add)"
+		label := "Torbox [add]"
 		link := fmt.Sprintf("%s/torbox/stream/%s?cached=0&title=%s",
 			s.torbox.BaseURL,
 			infoHash,
@@ -41,7 +48,7 @@ func (s *StreamService) buildTorboxStreamLinks(
 		}
 
 		if cached {
-			label = "Torbox (cached)"
+			label = "Torbox [cached]"
 			directURL, err := s.torbox.TorboxStreamURL(ctx, infoHash, result.Title, true, season, episode, result.Magnet)
 			if err != nil {
 			} else {
@@ -50,10 +57,10 @@ func (s *StreamService) buildTorboxStreamLinks(
 		}
 
 		streams = append(streams, StremioStream{
-			Name:     label,
-			Title:    result.Title + " • " + label,
-			URL:      link,
-			InfoHash: infoHash,
+			Title:        result.Title + " • " + label,
+			URL:          link,
+			InfoHash:     infoHash,
+			TorrentTitle: result.TorrentTitle,
 		})
 	}
 

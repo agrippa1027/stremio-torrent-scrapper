@@ -8,7 +8,7 @@ import (
 
 	"scrapper/internal/stream"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 )
 
 type Addon struct {

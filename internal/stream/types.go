@@ -3,7 +3,6 @@ package stream
 type SearchQuery struct {
 	Type    string // Movie or TVShow
 	ID      string
-	Title   string
 	Season  int
 	Episode int
 }
@@ -27,15 +26,17 @@ type Stream struct {
 	Size     uint64
 	Tracker  string
 	Files    uint
+
+	TorrentTitle string
 }
 
 type StremioStream struct {
-	Name     string   `json:"name,omitempty"`
-	Title    string   `json:"title,omitempty"`
-	URL      string   `json:"url,omitempty"`
-	InfoHash string   `json:"infoHash,omitempty"`
-	FileIdx  *int     `json:"fileIdx,omitempty"`
-	Sources  []string `json:"sources,omitempty"`
+	Title        string   `json:"title,omitempty"`
+	URL          string   `json:"url,omitempty"`
+	InfoHash     string   `json:"infoHash,omitempty"`
+	FileIdx      *int     `json:"fileIdx,omitempty"`
+	Sources      []string `json:"sources,omitempty"`
+	TorrentTitle string   `json:"torrentTitle,omitempty"`
 }
 
 type StreamResponse struct {
